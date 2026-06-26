@@ -388,38 +388,55 @@ app.post('/api/teams-notify', async (req, res) => {
       return res.status(400).json({ error: 'users array is empty — no one to remind' });
     }
 
-    // Validate that it looks like a Teams webhook URL
-    // Accepts: Incoming Webhook (*.webhook.office.com) or Workflows / Logic Apps (prod-*.logic.azure.com any region)
-    if (!/^https:\/\/[^/]*\.webhook\.office\.com\//i.test(webhookUrl) &&
-        !/^https:\/\/prod-[^/]*\.logic\.azure\.com\//i.test(webhookUrl)) {
-      return res.status(400).json({ error: 'webhookUrl does not look like a valid Teams Incoming Webhook or Workflows URL' });
+    // Detect webhook type so we can send the right payload format
+    const isPowerAutomate = /powerplatform\.com|powerautomate/i.test(webhookUrl);
+    const isOfficeConnector = /webhook\.office\.com/i.test(webhookUrl);
+    const isLogicApps = /logic\.azure\.com/i.test(webhookUrl);
+
+    // Validate: must be one of the three known Teams/Power Platform webhook shapes
+    if (!isPowerAutomate && !isOfficeConnector && !isLogicApps) {
+      return res.status(400).json({ error: 'webhookUrl does not look like a valid Teams Incoming Webhook, Workflows, or Power Automate URL' });
     }
 
-    // Build a simple Adaptive Card (Teams "MessageCard" legacy format — works with all webhook types)
-    const nameList = users.map(u => `• **${u.name}** (${u.email})`).join('\n\n');
-    const card = {
-      "@type":      "MessageCard",
-      "@context":   "http://schema.org/extensions",
-      "themeColor": "F59E0B",
-      "summary":    `ICA Reminder — ${users.length} member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
-      "sections": [
-        {
-          "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
-          "activitySubtitle": `${users.length} team member${users.length !== 1 ? 's' : ''} haven't used ICA today`,
-          "activityImage":    "https://ace.ibm.com/favicon.ico",
-          "facts": users.map(u => ({ name: u.name, value: u.email })),
-          "text": `Hi team,\n\nThe following member${users.length !== 1 ? 's' : ''} ${users.length !== 1 ? 'have' : 'has'} not yet used **ICA (IBM Consulting Assistant)** today (${date}):\n\n${nameList}\n\nPlease log in at [ace.ibm.com](https://ace.ibm.com) and use ICA to keep our team's usage data up to date. Thank you! 🙏`,
-          "markdown": true
-        }
-      ],
-      "potentialAction": [
-        {
-          "@type":  "OpenUri",
-          "name":   "Open ICA Now",
-          "targets": [{ "os": "default", "uri": "https://ace.ibm.com" }]
-        }
-      ]
-    };
+    const nameList = users.map(u => `• ${u.name} (${u.email})`).join('\n');
+
+    // Power Automate "When an HTTP request is received" trigger expects a plain JSON body —
+    // the workflow itself formats the Teams message. We send a structured object.
+    // For Office Connector & Logic Apps we send a MessageCard which Teams renders directly.
+    let card;
+    if (isPowerAutomate) {
+      card = {
+        date,
+        count:   users.length,
+        summary: `${users.length} team member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
+        message: `Hi team, the following member${users.length !== 1 ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
+        users:   users.map(u => ({ name: u.name, email: u.email })),
+      };
+    } else {
+      // MessageCard format — works for both *.webhook.office.com and prod-*.logic.azure.com
+      card = {
+        "@type":      "MessageCard",
+        "@context":   "http://schema.org/extensions",
+        "themeColor": "F59E0B",
+        "summary":    `ICA Reminder — ${users.length} member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
+        "sections": [
+          {
+            "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
+            "activitySubtitle": `${users.length} team member${users.length !== 1 ? 's' : ''} haven't used ICA today`,
+            "facts": users.map(u => ({ name: u.name, value: u.email })),
+            "text": `Hi team, the following member${users.length !== 1 ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
+            "markdown": true
+          }
+        ],
+        "potentialAction": [
+          {
+            "@type":  "OpenUri",
+            "name":   "Open ICA Now",
+            "targets": [{ "os": "default", "uri": "https://ace.ibm.com" }]
+          }
+        ]
+      };
+    }
 
     // Post to Teams webhook using built-in https module (no extra dependency)
     await new Promise((resolve, reject) => {

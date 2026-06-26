@@ -141,18 +141,19 @@ function TeamsWebhookConfig({ webhookUrl, onSaved }) {
         card directly to your channel with one click — no Azure portal or app registration needed.
       </Typography>
 
-      {/* Path A — via Manage channel → Connectors (classic) */}
-      <Box sx={{ mb: 1, p: 1.5, bgcolor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 1.5 }}>
-        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#3b82f6', mb: 0.75 }}>
-          Option A — Manage channel → Connectors (2 minutes)
+      {/* Path A — Power Automate / Workflows (primary for most IBM tenants) */}
+      <Box sx={{ mb: 1, p: 1.5, bgcolor: 'rgba(124,92,216,0.06)', border: '1px solid rgba(124,92,216,0.2)', borderRadius: 1.5 }}>
+        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#7c5cd8', mb: 0.75 }}>
+          Option A — Workflows / Power Automate ✓ Recommended
         </Typography>
         {[
-          'In Teams, go to your channel (e.g. #ica-reminders).',
-          'Click ••• next to the channel name → Manage channel.',
-          'Scroll down to Connectors → click Edit.',
-          'Search "Incoming Webhook" → Add → Add again to confirm.',
-          'Give it a name e.g. "ICA Reminder" → Create.',
-          'Copy the URL shown → paste it in the box below.',
+          'Click ••• next to the channel name → Workflows.',
+          'In the search box type "webhook".',
+          'Click "Send webhook alerts to a channel".',
+          'Select your Team and Channel → Next → Add workflow.',
+          'On the confirmation screen, copy the full HTTP POST URL.',
+          'The URL starts with https://default…powerplatform.com or https://prod-…logic.azure.com — both work.',
+          'Paste it in the box below → Save Webhook URL.',
         ].map((step, i) => (
           <Typography key={i} sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.7 }}>
             {i + 1}. {step}
@@ -160,17 +161,17 @@ function TeamsWebhookConfig({ webhookUrl, onSaved }) {
         ))}
       </Box>
 
-      {/* Path B — via Workflows (new Teams) */}
-      <Box sx={{ mb: 1.5, p: 1.5, bgcolor: 'rgba(124,92,216,0.06)', border: '1px solid rgba(124,92,216,0.2)', borderRadius: 1.5 }}>
-        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#7c5cd8', mb: 0.75 }}>
-          Option B — Workflows (newer Teams UI)
+      {/* Path B — classic Office 365 Connectors */}
+      <Box sx={{ mb: 1.5, p: 1.5, bgcolor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 1.5 }}>
+        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#3b82f6', mb: 0.75 }}>
+          Option B — Manage channel → Connectors (classic)
         </Typography>
         {[
-          'Click ••• next to the channel name → Workflows.',
-          'Search for "Post to a channel when a webhook request is received".',
-          'Click Add → name it "ICA Reminder" → Next → Add workflow.',
-          'Copy the HTTP POST URL shown → paste it in the box below.',
-          'Note: Workflows URLs start with https://prod-…logic.azure.com — that also works.',
+          'Click ••• next to the channel name → Manage channel.',
+          'Scroll down to Connectors → Edit.',
+          'Search "Incoming Webhook" → Add → Configure.',
+          'Name it "ICA Reminder" → Create.',
+          'Copy the URL (starts with https://…webhook.office.com) → paste below.',
         ].map((step, i) => (
           <Typography key={i} sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.7 }}>
             {i + 1}. {step}
