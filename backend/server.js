@@ -398,33 +398,85 @@ app.post('/api/teams-notify', async (req, res) => {
       return res.status(400).json({ error: 'webhookUrl does not look like a valid Teams Incoming Webhook, Workflows, or Power Automate URL' });
     }
 
-    const nameList = users.map(u => `• ${u.name} (${u.email})`).join('\n');
+    // ── Build the payload ──────────────────────────────────────────────────────
+    // Power Automate "Send webhook alerts to a channel" template routes the
+    // incoming body straight into "Post card in a chat or channel" which requires
+    // a valid Adaptive Card with "type":"AdaptiveCard".
+    // Office Connector / Logic Apps use the older MessageCard format instead.
 
-    // Power Automate "When an HTTP request is received" trigger expects a plain JSON body —
-    // the workflow itself formats the Teams message. We send a structured object.
-    // For Office Connector & Logic Apps we send a MessageCard which Teams renders directly.
+    // Shared: build the member rows for the Adaptive Card FactSet
+    const factRows = users.map(u => ({ title: u.name, value: u.email }));
+    const plural = users.length !== 1;
+
+    // Adaptive Card (required by Power Automate "Post card" action)
+    const adaptiveCard = {
+      "type": "AdaptiveCard",
+      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+      "version": "1.4",
+      "body": [
+        {
+          "type": "TextBlock",
+          "text": `⚠️ ICA Usage Reminder — ${date}`,
+          "weight": "Bolder",
+          "size": "Medium",
+          "color": "Warning",
+          "wrap": true
+        },
+        {
+          "type": "TextBlock",
+          "text": `${users.length} team member${plural ? 's' : ''} ${plural ? 'have' : 'has'} not yet used ICA today.`,
+          "wrap": true,
+          "spacing": "Small"
+        },
+        {
+          "type": "FactSet",
+          "facts": factRows,
+          "spacing": "Medium"
+        },
+        {
+          "type": "TextBlock",
+          "text": "Please log in and use ICA to keep the team's usage data up to date. Thank you! 🙏",
+          "wrap": true,
+          "spacing": "Medium",
+          "isSubtle": true
+        }
+      ],
+      "actions": [
+        {
+          "type": "Action.OpenUrl",
+          "title": "Open ICA Now",
+          "url": "https://ace.ibm.com"
+        }
+      ]
+    };
+
     let card;
     if (isPowerAutomate) {
+      // Power Automate "Send webhook alerts to a channel" template expects the
+      // body to contain an "attachments" array with the Adaptive Card as a string.
       card = {
-        date,
-        count:   users.length,
-        summary: `${users.length} team member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
-        message: `Hi team, the following member${users.length !== 1 ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
-        users:   users.map(u => ({ name: u.name, email: u.email })),
+        "type": "message",
+        "attachments": [
+          {
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": adaptiveCard
+          }
+        ]
       };
     } else {
       // MessageCard format — works for both *.webhook.office.com and prod-*.logic.azure.com
+      const nameList = users.map(u => `• ${u.name} (${u.email})`).join('\n');
       card = {
         "@type":      "MessageCard",
         "@context":   "http://schema.org/extensions",
         "themeColor": "F59E0B",
-        "summary":    `ICA Reminder — ${users.length} member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
+        "summary":    `ICA Reminder — ${users.length} member${plural ? 's' : ''} missed ICA on ${date}`,
         "sections": [
           {
             "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
-            "activitySubtitle": `${users.length} team member${users.length !== 1 ? 's' : ''} haven't used ICA today`,
+            "activitySubtitle": `${users.length} team member${plural ? 's' : ''} haven't used ICA today`,
             "facts": users.map(u => ({ name: u.name, value: u.email })),
-            "text": `Hi team, the following member${users.length !== 1 ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
+            "text": `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
             "markdown": true
           }
         ],
