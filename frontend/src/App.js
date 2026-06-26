@@ -27,6 +27,7 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import CheckCircleIcon  from '@mui/icons-material/CheckCircle';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import PeopleIcon       from '@mui/icons-material/People';
 import axios from 'axios';
 
 import Dashboard        from './components/Dashboard';
@@ -34,6 +35,7 @@ import UsageExplorer    from './components/UsageExplorer';
 import UserReports      from './components/UserReports';
 import AssistantReports from './components/AssistantReports';
 import Reminders        from './components/Reminders';
+import TeamManager      from './components/TeamManager';
 
 const SIDEBAR_WIDTH = 248;
 
@@ -87,6 +89,7 @@ const NAV_ITEMS = [
   { id: 2, label: 'User Reports',      icon: <PersonIcon />,                 requiresData: true  },
   { id: 3, label: 'Assistant Reports', icon: <SmartToyIcon />,               requiresData: true  },
   { id: 4, label: 'Send Reminders',    icon: <NotificationsActiveIcon />,    requiresData: true  },
+  { id: 5, label: 'Team Manager',      icon: <PeopleIcon />,                 requiresData: true  },
 ];
 
 // ── Compact sidebar upload widget ─────────────────────────────────────────────
@@ -290,6 +293,7 @@ function App() {
     <UserReports      key={refreshKey} />,
     <AssistantReports key={refreshKey} />,
     <Reminders        key={refreshKey} />,
+    <TeamManager      key={refreshKey} refreshKey={refreshKey} />,
   ];
 
   return (

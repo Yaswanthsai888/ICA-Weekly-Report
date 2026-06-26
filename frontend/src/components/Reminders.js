@@ -179,7 +179,9 @@ export default function Reminders() {
         </Box>
         <Typography variant="body2" color="text.secondary">
           Find team members who didn't use ICA on a given day, then trigger email reminders
-          via ICA Agent Studio or directly via Outlook.
+          via ICA Agent Studio or directly via Outlook.{' '}
+          <strong>Only Online members</strong> are included — members marked Offline in Team Manager are
+          automatically excluded.
         </Typography>
       </Box>
 

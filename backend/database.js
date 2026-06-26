@@ -18,9 +18,15 @@ db.serialize(() => {
       email TEXT UNIQUE NOT NULL,
       scrum_master TEXT,
       track TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: add is_active column if the DB already existed without it
+  db.run(`ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`, () => {
+    // ignore error — column already exists on fresh DBs
+  });
 
   // Usage records table
   db.run(`
@@ -106,6 +112,31 @@ const dbHelpers = {
     });
   },
 
+  // Get all team members with their active status
+  getTeamMembers: () => {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM users ORDER BY name', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  // Set a user's active status (1 = online/active, 0 = offline/inactive)
+  setUserActiveStatus: (userId, isActive) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET is_active = ? WHERE id = ?',
+        [isActive ? 1 : 0, userId],
+        function(err) {
+          if (err) reject(err);
+          else if (this.changes === 0) reject(new Error('User not found'));
+          else resolve({ id: userId, is_active: isActive ? 1 : 0 });
+        }
+      );
+    });
+  },
+
   // Get usage records by date range
   getUsageByDateRange: (startDate, endDate) => {
     return new Promise((resolve, reject) => {
@@ -183,17 +214,19 @@ const dbHelpers = {
   },
 
   // Get users who had NO usage on a specific date (missed that day)
+  // Only includes ACTIVE users (is_active = 1) — inactive/offline members are excluded
   // Returns: [{ id, name, email, scrum_master, track }]
   getMissedUsers: (date) => {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT u.id, u.name, u.email, u.scrum_master, u.track
          FROM users u
-         WHERE u.id NOT IN (
-           SELECT DISTINCT ur.user_id
-           FROM usage_records ur
-           WHERE ur.date = ?
-         )
+         WHERE u.is_active = 1
+           AND u.id NOT IN (
+             SELECT DISTINCT ur.user_id
+             FROM usage_records ur
+             WHERE ur.date = ?
+           )
          ORDER BY u.name`,
         [date],
         (err, rows) => {

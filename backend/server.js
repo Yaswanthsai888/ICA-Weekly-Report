@@ -312,6 +312,41 @@ app.get('/api/missed-users', async (req, res) => {
   }
 });
 
+// Get all team members with their active/inactive status
+app.get('/api/team-members', async (req, res) => {
+  try {
+    const members = await dbHelpers.getTeamMembers();
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching team members:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
+  }
+});
+
+// Update a user's active status (online = active on project, offline = left/on leave)
+app.patch('/api/users/:id/status', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { is_active } = req.body;
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+    if (is_active === undefined || is_active === null) {
+      return res.status(400).json({ error: 'is_active (boolean) is required in the request body' });
+    }
+
+    const updated = await dbHelpers.setUserActiveStatus(userId, Boolean(is_active));
+    res.json({ success: true, ...updated });
+  } catch (error) {
+    if (error.message === 'User not found') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    console.error('Error updating user status:', error);
+    res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
 // Clear all data (for testing/re-import)
 app.delete('/api/clear-data', async (req, res) => {
   try {
