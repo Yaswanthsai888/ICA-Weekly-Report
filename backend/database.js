@@ -42,6 +42,15 @@ db.serialize(() => {
     )
   `);
 
+  // App settings table (key/value store)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Create indexes for better query performance
   db.run(`CREATE INDEX IF NOT EXISTS idx_usage_date ON usage_records(date)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_records(user_id)`);
@@ -232,6 +241,32 @@ const dbHelpers = {
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
+        }
+      );
+    });
+  },
+
+  // Get a setting by key
+  getSetting: (key) => {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT value FROM app_settings WHERE key = ?', [key], (err, row) => {
+        if (err) reject(err);
+        else resolve(row ? row.value : null);
+      });
+    });
+  },
+
+  // Set (upsert) a setting
+  setSetting: (key, value) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO app_settings (key, value, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+        [key, value],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ key, value });
         }
       );
     });

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -19,14 +19,21 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  TextField,
+  InputAdornment,
+  Collapse,
 } from '@mui/material';
-import ContentCopyIcon       from '@mui/icons-material/ContentCopy';
-import CheckIcon             from '@mui/icons-material/Check';
-import ExpandMoreIcon        from '@mui/icons-material/ExpandMore';
-import PersonOffIcon         from '@mui/icons-material/PersonOff';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import ApiIcon               from '@mui/icons-material/Api';
-import EmailIcon             from '@mui/icons-material/Email';
+import ContentCopyIcon          from '@mui/icons-material/ContentCopy';
+import CheckIcon                from '@mui/icons-material/Check';
+import ExpandMoreIcon           from '@mui/icons-material/ExpandMore';
+import PersonOffIcon            from '@mui/icons-material/PersonOff';
+import NotificationsActiveIcon  from '@mui/icons-material/NotificationsActive';
+import ApiIcon                  from '@mui/icons-material/Api';
+import EmailIcon                from '@mui/icons-material/Email';
+import SendIcon                 from '@mui/icons-material/Send';
+import LinkIcon                 from '@mui/icons-material/Link';
+import SaveIcon                 from '@mui/icons-material/Save';
+import SettingsIcon             from '@mui/icons-material/Settings';
 import axios from 'axios';
 
 // ── Helper: today as YYYY-MM-DD (local time, not UTC) ────────────────────────
@@ -58,44 +65,17 @@ function CopyButton({ text, size = 'small' }) {
 // ── Agent Studio workflow step diagram ───────────────────────────────────────
 function WorkflowDiagram({ apiUrl }) {
   const steps = [
-    {
-      icon: '⏰',
-      label: 'Trigger',
-      detail: 'Schedule or Manual',
-      color: '#7c3aed',
-    },
-    {
-      icon: '🌐',
-      label: 'API Request',
-      detail: apiUrl,
-      color: '#2563eb',
-      copyable: true,
-    },
-    {
-      icon: '⚙️',
-      label: 'JSON Operations',
-      detail: 'Parse .users array from response',
-      color: '#0891b2',
-    },
-    {
-      icon: '🔁',
-      label: 'Loop',
-      detail: 'Iterate over each missed user',
-      color: '#0891b2',
-    },
-    {
-      icon: '📧',
-      label: 'Send Email',
-      detail: 'Outlook or Gmail (Composio) → send reminder',
-      color: '#16a34a',
-    },
+    { icon: '⏰', label: 'Trigger',         detail: 'Schedule or Manual',                        color: '#7c3aed' },
+    { icon: '🌐', label: 'API Request',     detail: apiUrl,                                      color: '#2563eb', copyable: true },
+    { icon: '⚙️', label: 'JSON Operations', detail: 'Parse .users array from response',          color: '#0891b2' },
+    { icon: '🔁', label: 'Loop',            detail: 'Iterate over each missed user',             color: '#0891b2' },
+    { icon: '📧', label: 'Send Email',      detail: 'Outlook or Gmail (Composio) → send reminder', color: '#16a34a' },
   ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {steps.map((step, i) => (
         <Box key={i} sx={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
-          {/* Connector column */}
           <Box sx={{ width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
             <Box sx={{
               width: 32, height: 32, borderRadius: '50%',
@@ -108,8 +88,6 @@ function WorkflowDiagram({ apiUrl }) {
               <Box sx={{ width: 2, flexGrow: 1, bgcolor: '#1e293b', my: 0.25, minHeight: 16 }} />
             )}
           </Box>
-
-          {/* Content */}
           <Box sx={{ pb: i < steps.length - 1 ? 2 : 0, pl: 1.5, flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#e2e8f0', lineHeight: 1.3 }}>
               {step.label}
@@ -131,12 +109,236 @@ function WorkflowDiagram({ apiUrl }) {
   );
 }
 
+// ── Teams Incoming Webhook configuration card ─────────────────────────────────
+function TeamsWebhookConfig({ webhookUrl, onSaved }) {
+  const [draft, setDraft]     = useState(webhookUrl || '');
+  const [saving, setSaving]   = useState(false);
+  const [saved,  setSaved]    = useState(false);
+  const [err,    setErr]      = useState(null);
+
+  // Keep draft in sync if parent reloads the saved URL
+  useEffect(() => { setDraft(webhookUrl || ''); }, [webhookUrl]);
+
+  const handleSave = async () => {
+    if (!draft.trim()) return;
+    setSaving(true); setErr(null); setSaved(false);
+    try {
+      await axios.post('/api/settings/teams-webhook', { value: draft.trim() });
+      setSaved(true);
+      onSaved(draft.trim());
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Failed to save webhook URL');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Box>
+      <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary', mb: 1.5, lineHeight: 1.6 }}>
+        Paste your Teams <strong>Incoming Webhook URL</strong> below. The app will POST a reminder
+        card directly to your channel with one click — no Azure portal or app registration needed.
+      </Typography>
+
+      {/* Path A — via Manage channel → Connectors (classic) */}
+      <Box sx={{ mb: 1, p: 1.5, bgcolor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 1.5 }}>
+        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#3b82f6', mb: 0.75 }}>
+          Option A — Manage channel → Connectors (2 minutes)
+        </Typography>
+        {[
+          'In Teams, go to your channel (e.g. #ica-reminders).',
+          'Click ••• next to the channel name → Manage channel.',
+          'Scroll down to Connectors → click Edit.',
+          'Search "Incoming Webhook" → Add → Add again to confirm.',
+          'Give it a name e.g. "ICA Reminder" → Create.',
+          'Copy the URL shown → paste it in the box below.',
+        ].map((step, i) => (
+          <Typography key={i} sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.7 }}>
+            {i + 1}. {step}
+          </Typography>
+        ))}
+      </Box>
+
+      {/* Path B — via Workflows (new Teams) */}
+      <Box sx={{ mb: 1.5, p: 1.5, bgcolor: 'rgba(124,92,216,0.06)', border: '1px solid rgba(124,92,216,0.2)', borderRadius: 1.5 }}>
+        <Typography sx={{ fontSize: '0.73rem', fontWeight: 600, color: '#7c5cd8', mb: 0.75 }}>
+          Option B — Workflows (newer Teams UI)
+        </Typography>
+        {[
+          'Click ••• next to the channel name → Workflows.',
+          'Search for "Post to a channel when a webhook request is received".',
+          'Click Add → name it "ICA Reminder" → Next → Add workflow.',
+          'Copy the HTTP POST URL shown → paste it in the box below.',
+          'Note: Workflows URLs start with https://prod-…logic.azure.com — that also works.',
+        ].map((step, i) => (
+          <Typography key={i} sx={{ fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.7 }}>
+            {i + 1}. {step}
+          </Typography>
+        ))}
+      </Box>
+
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="https://xxxx.webhook.office.com/webhookb2/…"
+        value={draft}
+        onChange={(e) => { setDraft(e.target.value); setErr(null); setSaved(false); }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LinkIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 1 }}
+      />
+
+      {err && <Alert severity="error" sx={{ mb: 1, fontSize: '0.8rem', py: 0.5 }}>{err}</Alert>}
+
+      <Button
+        variant="contained"
+        size="small"
+        fullWidth
+        disabled={!draft.trim() || saving || draft.trim() === webhookUrl}
+        onClick={handleSave}
+        startIcon={saving ? null : saved ? <CheckIcon /> : <SaveIcon />}
+        sx={{
+          textTransform: 'none', fontSize: '0.82rem',
+          bgcolor: saved ? '#16a34a' : undefined,
+          '&:hover': { bgcolor: saved ? '#15803d' : undefined },
+        }}
+      >
+        {saving ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : saved ? 'Saved!' : 'Save Webhook URL'}
+      </Button>
+    </Box>
+  );
+}
+
+// ── Teams notification action card ────────────────────────────────────────────
+function TeamsNotifyCard({ result, webhookUrl, selectedDate }) {
+  const [posting,    setPosting]    = useState(false);
+  const [postResult, setPostResult] = useState(null); // { ok, message }
+  const hasWebhook = Boolean(webhookUrl?.trim());
+  const hasUsers   = result?.count > 0;
+
+  // Build Teams deep-link: opens Teams app/browser to compose a message in the same channel
+  // Falls back to a generic compose deep-link if no channel is configured.
+  const teamsDeepLink = (() => {
+    const names = result?.users?.map(u => u.name).join(', ') || '';
+    const msg = encodeURIComponent(
+      `Hi team 👋 A quick reminder — the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`
+    );
+    return `https://teams.microsoft.com/l/chat/0/0?message=${msg}`;
+  })();
+
+  const handlePost = async () => {
+    setPosting(true);
+    setPostResult(null);
+    try {
+      const res = await axios.post('/api/teams-notify', {
+        webhookUrl,
+        date:  result.date,
+        users: result.users,
+      });
+      setPostResult({ ok: true, message: res.data.message });
+    } catch (err) {
+      setPostResult({ ok: false, message: err.response?.data?.error || 'Failed to post to Teams' });
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+        Microsoft Teams
+      </Typography>
+
+      {/* One-click post via webhook */}
+      <Tooltip
+        title={
+          !hasWebhook ? 'Add a Teams Webhook URL in the Teams Setup card on the right first' :
+          !hasUsers   ? 'No missed users to remind' : ''
+        }
+      >
+        <span>
+          <Button
+            variant="contained"
+            size="small"
+            fullWidth
+            disabled={!hasWebhook || !hasUsers || posting}
+            onClick={handlePost}
+            startIcon={posting ? null : <SendIcon sx={{ fontSize: '15px !important' }} />}
+            sx={{
+              justifyContent: 'flex-start', textTransform: 'none', fontSize: '0.82rem',
+              bgcolor: '#5b5ea6',   // Teams purple
+              '&:hover': { bgcolor: '#4a4d8a' },
+              '&.Mui-disabled': { bgcolor: 'rgba(91,94,166,0.3)', color: 'rgba(255,255,255,0.4)' },
+            }}
+          >
+            {posting
+              ? <CircularProgress size={16} sx={{ color: '#fff' }} />
+              : 'Post Reminder to Teams Channel'}
+          </Button>
+        </span>
+      </Tooltip>
+
+      {/* Deep-link fallback */}
+      <Button
+        component="a"
+        href={teamsDeepLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="outlined"
+        size="small"
+        fullWidth
+        disabled={!hasUsers}
+        startIcon={<LinkIcon sx={{ fontSize: '15px !important' }} />}
+        sx={{ justifyContent: 'flex-start', textTransform: 'none', fontSize: '0.82rem', borderColor: '#5b5ea6', color: '#5b5ea6', '&:hover': { borderColor: '#4a4d8a', bgcolor: 'rgba(91,94,166,0.06)' } }}
+      >
+        Open Teams Chat with message pre-filled
+      </Button>
+
+      {/* Result feedback */}
+      <Collapse in={Boolean(postResult)}>
+        {postResult && (
+          <Alert
+            severity={postResult.ok ? 'success' : 'error'}
+            onClose={() => setPostResult(null)}
+            sx={{ fontSize: '0.8rem', py: 0.5 }}
+          >
+            {postResult.message}
+          </Alert>
+        )}
+      </Collapse>
+
+      {/* Hint if no webhook configured */}
+      {!hasWebhook && (
+        <Typography sx={{ fontSize: '0.72rem', color: 'text.disabled', mt: 0.25 }}>
+          Configure a Webhook URL in the Teams Setup panel → to enable one-click channel posting.
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Reminders() {
   const [selectedDate, setSelectedDate] = useState(todayLocal());
   const [loading, setLoading]           = useState(false);
   const [result, setResult]             = useState(null);   // { date, count, users } | null
   const [error, setError]               = useState(null);
+
+  // Teams webhook URL persisted in DB
+  const [webhookUrl, setWebhookUrl]     = useState('');
+
+  // Load saved webhook URL on mount
+  useEffect(() => {
+    axios.get('/api/settings/teams-webhook')
+      .then(r => { if (r.data.value) setWebhookUrl(r.data.value); })
+      .catch(() => {});
+  }, []);
 
   // Derive the API URL dynamically (works in both dev and prod)
   const baseUrl = window.location.origin;
@@ -169,7 +371,7 @@ export default function Reminders() {
     : '';
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 960, mx: 'auto' }}>
 
       {/* ── Header ── */}
       <Box sx={{ mb: 3 }}>
@@ -179,7 +381,7 @@ export default function Reminders() {
         </Box>
         <Typography variant="body2" color="text.secondary">
           Find team members who didn't use ICA on a given day, then trigger email reminders
-          via ICA Agent Studio or directly via Outlook.{' '}
+          via ICA Agent Studio, Outlook, or directly to a <strong>Microsoft Teams channel</strong>.{' '}
           <strong>Only Online members</strong> are included — members marked Offline in Team Manager are
           automatically excluded.
         </Typography>
@@ -203,16 +405,10 @@ export default function Reminders() {
                 max={todayLocal()}
                 onChange={(e) => { setSelectedDate(e.target.value); setResult(null); setError(null); }}
                 sx={{
-                  flex: 1,
-                  height: 40,
-                  px: 1.5,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  fontFamily: 'inherit',
-                  color: 'text.primary',
-                  bgcolor: 'background.default',
+                  flex: 1, height: 40, px: 1.5,
+                  border: '1px solid', borderColor: 'divider', borderRadius: '8px',
+                  fontSize: '0.9rem', fontFamily: 'inherit',
+                  color: 'text.primary', bgcolor: 'background.default',
                   outline: 'none',
                   '&:focus': { borderColor: 'primary.main', boxShadow: '0 0 0 2px rgba(37,99,235,0.18)' },
                   cursor: 'text',
@@ -270,7 +466,7 @@ export default function Reminders() {
               {result.count > 0 && (
                 <>
                   {/* User table */}
-                  <TableContainer sx={{ maxHeight: 280 }}>
+                  <TableContainer sx={{ maxHeight: 240 }}>
                     <Table size="small" stickyHeader>
                       <TableHead>
                         <TableRow>
@@ -295,8 +491,19 @@ export default function Reminders() {
 
                   {/* Quick actions */}
                   <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+
+                    {/* ── Teams actions ── */}
+                    <TeamsNotifyCard
+                      result={result}
+                      webhookUrl={webhookUrl}
+                      selectedDate={selectedDate}
+                    />
+
+                    <Divider sx={{ my: 0.5 }} />
+
+                    {/* ── Email actions ── */}
                     <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
-                      Quick Actions
+                      Email
                     </Typography>
 
                     {/* Mailto link — opens Outlook / default mail client */}
@@ -344,8 +551,36 @@ export default function Reminders() {
           )}
         </Box>
 
-        {/* ── Right: Agent Studio guide + API reference ── */}
+        {/* ── Right: Teams setup + Agent Studio guide + API reference ── */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+          {/* ── Teams Incoming Webhook setup ── */}
+          <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+            <Accordion disableGutters elevation={0} defaultExpanded sx={{ '&::before': { display: 'none' } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2.5, py: 1.5, minHeight: 'unset', bgcolor: 'background.default' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {/* Teams logo-ish icon */}
+                  <Box sx={{
+                    width: 22, height: 22, borderRadius: '6px', bgcolor: '#5b5ea6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <SettingsIcon sx={{ fontSize: 13, color: '#fff' }} />
+                  </Box>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Teams Setup — Incoming Webhook</Typography>
+                  {webhookUrl && (
+                    <Chip
+                      label="Configured"
+                      size="small"
+                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'rgba(22,163,74,0.12)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)', ml: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
+                <TeamsWebhookConfig webhookUrl={webhookUrl} onSaved={setWebhookUrl} />
+              </AccordionDetails>
+            </Accordion>
+          </Paper>
 
           {/* API endpoint card */}
           <Paper elevation={0} sx={{ p: 2.5, border: '1px solid', borderColor: 'divider' }}>

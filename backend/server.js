@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { dbHelpers } = require('./database');
 const { parseCSV } = require('./csvParser');
 const { startOfWeek, endOfWeek, format, subWeeks, addDays } = require('date-fns');
@@ -344,6 +345,113 @@ app.patch('/api/users/:id/status', async (req, res) => {
     }
     console.error('Error updating user status:', error);
     res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+// ── App Settings ─────────────────────────────────────────────────────────────
+// GET /api/settings/:key  — retrieve a stored setting
+app.get('/api/settings/:key', async (req, res) => {
+  try {
+    const value = await dbHelpers.getSetting(req.params.key);
+    res.json({ key: req.params.key, value });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    res.status(500).json({ error: 'Failed to fetch setting' });
+  }
+});
+
+// POST /api/settings/:key  — upsert a setting
+app.post('/api/settings/:key', async (req, res) => {
+  try {
+    const { value } = req.body;
+    if (value === undefined || value === null) {
+      return res.status(400).json({ error: 'value is required in the request body' });
+    }
+    const saved = await dbHelpers.setSetting(req.params.key, String(value));
+    res.json({ success: true, ...saved });
+  } catch (error) {
+    console.error('Error saving setting:', error);
+    res.status(500).json({ error: 'Failed to save setting' });
+  }
+});
+
+// POST /api/teams-notify  — post a reminder card to a Teams channel via Incoming Webhook
+// Body: { webhookUrl, date, users: [{name, email}] }
+app.post('/api/teams-notify', async (req, res) => {
+  try {
+    const { webhookUrl, date, users } = req.body;
+
+    if (!webhookUrl || !date || !Array.isArray(users)) {
+      return res.status(400).json({ error: 'webhookUrl, date and users[] are required' });
+    }
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'users array is empty — no one to remind' });
+    }
+
+    // Validate that it looks like a Teams webhook URL
+    // Accepts: Incoming Webhook (*.webhook.office.com) or Workflows / Logic Apps (prod-*.logic.azure.com any region)
+    if (!/^https:\/\/[^/]*\.webhook\.office\.com\//i.test(webhookUrl) &&
+        !/^https:\/\/prod-[^/]*\.logic\.azure\.com\//i.test(webhookUrl)) {
+      return res.status(400).json({ error: 'webhookUrl does not look like a valid Teams Incoming Webhook or Workflows URL' });
+    }
+
+    // Build a simple Adaptive Card (Teams "MessageCard" legacy format — works with all webhook types)
+    const nameList = users.map(u => `• **${u.name}** (${u.email})`).join('\n\n');
+    const card = {
+      "@type":      "MessageCard",
+      "@context":   "http://schema.org/extensions",
+      "themeColor": "F59E0B",
+      "summary":    `ICA Reminder — ${users.length} member${users.length !== 1 ? 's' : ''} missed ICA on ${date}`,
+      "sections": [
+        {
+          "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
+          "activitySubtitle": `${users.length} team member${users.length !== 1 ? 's' : ''} haven't used ICA today`,
+          "activityImage":    "https://ace.ibm.com/favicon.ico",
+          "facts": users.map(u => ({ name: u.name, value: u.email })),
+          "text": `Hi team,\n\nThe following member${users.length !== 1 ? 's' : ''} ${users.length !== 1 ? 'have' : 'has'} not yet used **ICA (IBM Consulting Assistant)** today (${date}):\n\n${nameList}\n\nPlease log in at [ace.ibm.com](https://ace.ibm.com) and use ICA to keep our team's usage data up to date. Thank you! 🙏`,
+          "markdown": true
+        }
+      ],
+      "potentialAction": [
+        {
+          "@type":  "OpenUri",
+          "name":   "Open ICA Now",
+          "targets": [{ "os": "default", "uri": "https://ace.ibm.com" }]
+        }
+      ]
+    };
+
+    // Post to Teams webhook using built-in https module (no extra dependency)
+    await new Promise((resolve, reject) => {
+      const payload = JSON.stringify(card);
+      const url = new URL(webhookUrl);
+      const options = {
+        hostname: url.hostname,
+        path:     url.pathname + url.search,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      };
+      const reqHttp = https.request(options, (resp) => {
+        let data = '';
+        resp.on('data', chunk => { data += chunk; });
+        resp.on('end', () => {
+          if (resp.statusCode >= 200 && resp.statusCode < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Teams webhook returned ${resp.statusCode}: ${data}`));
+          }
+        });
+      });
+      reqHttp.on('error', reject);
+      reqHttp.write(payload);
+      reqHttp.end();
+    });
+
+    res.json({ success: true, message: `Reminder posted to Teams for ${users.length} user${users.length !== 1 ? 's' : ''}` });
+  } catch (error) {
+    console.error('Error posting to Teams:', error);
+    const isWebhookErr = error.message?.startsWith('Teams webhook returned');
+    res.status(isWebhookErr ? 502 : 500).json({ error: isWebhookErr ? error.message : 'Failed to post Teams notification', details: error.message });
   }
 });
 
