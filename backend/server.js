@@ -445,7 +445,7 @@ app.post('/api/teams-notify', async (req, res) => {
         {
           "type": "Action.OpenUrl",
           "title": "Open ICA Now",
-          "url": "https://ace.ibm.com"
+          "url": "https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839"
         }
       ]
     };
@@ -476,7 +476,7 @@ app.post('/api/teams-notify', async (req, res) => {
             "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
             "activitySubtitle": `${users.length} team member${plural ? 's' : ''} haven't used ICA today`,
             "facts": users.map(u => ({ name: u.name, value: u.email })),
-            "text": `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://ace.ibm.com and use ICA. Thank you!`,
+            "text": `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`,
             "markdown": true
           }
         ],
@@ -484,7 +484,7 @@ app.post('/api/teams-notify', async (req, res) => {
           {
             "@type":  "OpenUri",
             "name":   "Open ICA Now",
-            "targets": [{ "os": "default", "uri": "https://ace.ibm.com" }]
+            "targets": [{ "os": "default", "uri": "https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839" }]
           }
         ]
       };

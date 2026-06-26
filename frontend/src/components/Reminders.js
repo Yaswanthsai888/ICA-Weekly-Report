@@ -365,7 +365,7 @@ export default function Reminders() {
   // Email body helpers
   const emailSubject = 'Reminder: Please use ICA (IBM Consulting Assistant) today';
   const emailBody = (name) =>
-    `Hi ${name},\n\nThis is a friendly reminder that you haven't used ICA (IBM Consulting Assistant) yet today.\n\nPlease log in and use ICA to keep the team's usage data up to date.\n\nhttps://ace.ibm.com\n\nThank you,\nYour Scrum Master`;
+    `Hi ${name},\n\nThis is a friendly reminder that you haven't used ICA (IBM Consulting Assistant) yet today.\n\nPlease log in and use ICA to keep the team's usage data up to date.\n\nhttps://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839\n\nThank you,\nYour Scrum Master`;
 
   const bulkEmailBody = result?.users?.length
     ? result.users.map(u => `To: ${u.email}\nSubject: ${emailSubject}\n\n${emailBody(u.name)}`).join('\n\n---\n\n')
