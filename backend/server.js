@@ -1,0 +1,344 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const { dbHelpers } = require('./database');
+const { parseCSV } = require('./csvParser');
+const { startOfWeek, endOfWeek, format, subWeeks, addDays } = require('date-fns');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// Middleware
+if (!IS_PROD) app.use(cors());   // dev only — in prod the frontend is served from same origin
+app.use(express.json());
+
+// ── Serve React build in production ──────────────────────────────────────────
+const FRONTEND_BUILD = path.join(__dirname, '..', 'frontend', 'build');
+if (IS_PROD && fs.existsSync(FRONTEND_BUILD)) {
+  app.use(express.static(FRONTEND_BUILD));
+}
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/' });
+
+// Ensure uploads directory exists
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'ICA Weekly Report API is running' });
+});
+
+// Upload and process CSV
+app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Read the uploaded file
+    const csvContent = fs.readFileSync(req.file.path, 'utf-8');
+    
+    // Parse CSV
+    const parseResult = parseCSV(csvContent);
+    
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error });
+    }
+
+    // Store data in database
+    let usersProcessed  = 0;
+    let newRecords      = 0;   // records that did not exist before
+    let skippedRecords  = 0;   // records already in the DB (duplicates)
+
+    for (const userData of parseResult.users) {
+      try {
+        const user = await dbHelpers.getOrCreateUser({
+          name: userData.name,
+          email: userData.email,
+          scrum_master: userData.scrum_master,
+          track: userData.track
+        });
+
+        usersProcessed++;
+
+        for (const usage of userData.usage) {
+          const result = await dbHelpers.insertUsageRecord({
+            user_id: user.id,
+            date: usage.date,
+            assistant_name: usage.assistant_name,
+            row_number: usage.row_number
+          });
+          if (result.isNew) newRecords++;
+          else              skippedRecords++;
+        }
+      } catch (error) {
+        console.error(`Error processing user ${userData.name}:`, error);
+      }
+    }
+
+    const totalRecords = newRecords + skippedRecords;
+    res.json({
+      success: true,
+      message: newRecords > 0
+        ? `${newRecords} new record${newRecords !== 1 ? 's' : ''} added successfully`
+        : 'No new records — database is already up to date',
+      stats: {
+        usersProcessed,
+        newRecords,
+        skippedRecords,
+        totalRecords,
+        dateRange: parseResult.dateRange,
+        totalDates: parseResult.totalDates
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing CSV:', error);
+    res.status(500).json({ error: 'Failed to process CSV file', details: error.message });
+  }
+});
+
+// Get all users
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await dbHelpers.getAllUsers();
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get weekly summary
+app.get('/api/weekly-summary', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+
+    const summary = await dbHelpers.getWeeklySummary(startDate, endDate);
+    res.json(summary);
+  } catch (error) {
+    console.error('Error fetching weekly summary:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly summary' });
+  }
+});
+
+// Get assistant statistics
+app.get('/api/assistant-stats', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+
+    const stats = await dbHelpers.getAssistantStats(startDate, endDate);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching assistant stats:', error);
+    res.status(500).json({ error: 'Failed to fetch assistant statistics' });
+  }
+});
+
+// Get user-specific usage
+app.get('/api/user-usage/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+
+    const usage = await dbHelpers.getUsageByUser(userId, startDate, endDate);
+    res.json(usage);
+  } catch (error) {
+    console.error('Error fetching user usage:', error);
+    res.status(500).json({ error: 'Failed to fetch user usage' });
+  }
+});
+
+// Get usage by date range
+app.get('/api/usage', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+
+    const usage = await dbHelpers.getUsageByDateRange(startDate, endDate);
+    res.json(usage);
+  } catch (error) {
+    console.error('Error fetching usage:', error);
+    res.status(500).json({ error: 'Failed to fetch usage data' });
+  }
+});
+
+// Get available weeks (for dropdown selection)
+app.get('/api/available-weeks', async (req, res) => {
+  try {
+    const usage = await dbHelpers.getUsageByDateRange('2000-01-01', '2099-12-31');
+    
+    if (usage.length === 0) {
+      return res.json([]);
+    }
+
+    // Get unique weeks
+    const weeks = new Set();
+    usage.forEach(record => {
+      const date = new Date(record.date);
+      const weekStart = startOfWeek(date, { weekStartsOn: 1 }); // Monday
+      weeks.add(format(weekStart, 'yyyy-MM-dd'));
+    });
+
+    const weekList = Array.from(weeks).sort().reverse().map(weekStart => {
+      const start = new Date(weekStart);
+      const end = endOfWeek(start, { weekStartsOn: 1 });
+      return {
+        startDate: format(start, 'yyyy-MM-dd'),
+        endDate: format(end, 'yyyy-MM-dd'),
+        label: `Week of ${format(start, 'MMM dd, yyyy')}`
+      };
+    });
+
+    res.json(weekList);
+  } catch (error) {
+    console.error('Error fetching available weeks:', error);
+    res.status(500).json({ error: 'Failed to fetch available weeks' });
+  }
+});
+
+// Get monthly summary: per-user counts grouped by week within a month
+// Query params: year (YYYY), month (1-12)
+app.get('/api/monthly-summary', async (req, res) => {
+  try {
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({ error: 'year and month are required' });
+    }
+
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' });
+    }
+
+    // Build first and last day of the month
+    const firstDay = format(new Date(y, m - 1, 1), 'yyyy-MM-dd');
+    const lastDay  = format(new Date(y, m, 0), 'yyyy-MM-dd');       // day 0 of next month = last day of this month
+
+    const usage = await dbHelpers.getUsageByDateRange(firstDay, lastDay);
+
+    if (usage.length === 0) {
+      return res.json({ weeks: [], users: [], rows: [], grandTotals: {} });
+    }
+
+    // Collect all unique week-start dates (Monday-based) within the range
+    const weekStartSet = new Set();
+    usage.forEach(record => {
+      const d = new Date(record.date);
+      const ws = startOfWeek(d, { weekStartsOn: 1 });
+      weekStartSet.add(format(ws, 'yyyy-MM-dd'));
+    });
+    const weeks = Array.from(weekStartSet).sort();
+
+    // Build per-user, per-week counts
+    const userMap = {};   // email → { name, weekCounts: { weekStart: count } }
+    usage.forEach(record => {
+      const ws = format(startOfWeek(new Date(record.date), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      if (!userMap[record.email]) {
+        userMap[record.email] = { name: record.name, email: record.email, weekCounts: {} };
+      }
+      userMap[record.email].weekCounts[ws] = (userMap[record.email].weekCounts[ws] || 0) + 1;
+    });
+
+    // Build sorted rows with grand total per user
+    const rows = Object.values(userMap)
+      .map(u => {
+        const total = Object.values(u.weekCounts).reduce((s, v) => s + v, 0);
+        return { name: u.name, email: u.email, weekCounts: u.weekCounts, total };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Column grand totals
+    const grandTotals = {};
+    let grandTotal = 0;
+    weeks.forEach(ws => {
+      grandTotals[ws] = rows.reduce((s, r) => s + (r.weekCounts[ws] || 0), 0);
+      grandTotal += grandTotals[ws];
+    });
+
+    res.json({ weeks, rows, grandTotals, grandTotal, month: m, year: y });
+  } catch (error) {
+    console.error('Error fetching monthly summary:', error);
+    res.status(500).json({ error: 'Failed to fetch monthly summary', details: error.message });
+  }
+});
+
+// Get users who had NO usage on a specific date — used by ICA Agent Studio workflow
+// Query param: date=YYYY-MM-DD
+// Returns: [{ id, name, email, scrum_master, track }]
+app.get('/api/missed-users', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ error: 'date query parameter is required (YYYY-MM-DD)' });
+    }
+    // Basic validation: YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'date must be in YYYY-MM-DD format' });
+    }
+    const users = await dbHelpers.getMissedUsers(date);
+    res.json({ date, count: users.length, users });
+  } catch (error) {
+    console.error('Error fetching missed users:', error);
+    res.status(500).json({ error: 'Failed to fetch missed users', details: error.message });
+  }
+});
+
+// Clear all data (for testing/re-import)
+app.delete('/api/clear-data', async (req, res) => {
+  try {
+    await dbHelpers.clearAllData();
+    res.json({ success: true, message: 'All data cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing data:', error);
+    res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
+
+// ── Catch-all: send React app for any non-API route (client-side routing) ────
+if (IS_PROD && fs.existsSync(FRONTEND_BUILD)) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(FRONTEND_BUILD, 'index.html'));
+  });
+}
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`\n  ICA Weekly Report Application`);
+  console.log(`  ─────────────────────────────────────`);
+  console.log(`  Mode   : ${IS_PROD ? 'production' : 'development'}`);
+  console.log(`  URL    : http://localhost:${PORT}`);
+  if (IS_PROD) console.log(`  App    : http://localhost:${PORT}  (open this in your browser)`);
+  else         console.log(`  API    : http://localhost:${PORT}/api`);
+  console.log('');
+});
+
+// Made with Bob

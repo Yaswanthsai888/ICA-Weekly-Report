@@ -1,0 +1,7 @@
+node_modules/
+uploads/
+*.db
+.env
+.DS_Store
+
+# Made with Bob

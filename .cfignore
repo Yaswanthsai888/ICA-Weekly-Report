@@ -1,0 +1,28 @@
+# .cfignore — files NOT pushed to Cloud Foundry
+# (same syntax as .gitignore)
+
+# Local dependency trees — CF buildpack installs these on the dyno
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# React dev build output (CF will rebuild from source)
+frontend/build/
+
+# Local SQLite database — never push data to CF
+backend/ica_usage.db
+*.db
+
+# Local env file — env vars are set in manifest.yml instead
+backend/.env
+.env
+
+# Uploads temp folder — CF has ephemeral storage
+uploads/
+backend/uploads/
+
+# Dev / editor artefacts
+.git/
+.vscode/
+*.bat
+*.log

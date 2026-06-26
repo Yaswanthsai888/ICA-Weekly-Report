@@ -1,0 +1,16 @@
+# k8s/pvc.yaml
+# PersistentVolumeClaim for SQLite database — IBM Cloud File Storage (Gold tier)
+# Survives pod restarts and re-deployments.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ica-data-pvc
+  labels:
+    app: ica-weekly-report
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ibmc-file-gold   # IBM Cloud File Storage — available on all ROKS clusters
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,7 @@
+{
+  "resourcesResourceGroups":          "rg-",
+  "webServerFarms":                   "plan-",
+  "webSitesAppService":               "app-",
+  "storageStorageAccounts":           "st",
+  "containerRegistryRegistries":      "acr"
+}

@@ -1,0 +1,24 @@
+---
+# manifest.yml — IBM Cloud Foundry deployment manifest
+# Target: IBM Cloud free Lite account (256 MB memory limit)
+#
+# Deploy with:
+#   cf login -a https://api.us-south.cf.cloud.ibm.com
+#   cf push
+# ---------------------------------------------------------------------------
+applications:
+  - name: ica-weekly-report
+    memory: 256M
+    disk_quota: 1024M
+    instances: 1
+    buildpacks:
+      - nodejs_buildpack
+    # React is built during CF staging (postinstall hook in package.json).
+    # At runtime we only start the lean Node.js server — well within 256M.
+    command: node backend/server.js
+    health-check-type: http
+    health-check-http-endpoint: /api/health
+    env:
+      NODE_ENV: production
+      DB_PATH: /home/vcap/app/data/ica_usage.db
+      NPM_CONFIG_PRODUCTION: "false"   # allow devDependencies so react-scripts runs at staging

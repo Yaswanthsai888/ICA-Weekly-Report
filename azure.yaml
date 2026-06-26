@@ -1,0 +1,22 @@
+# azure.yaml — Azure Developer CLI configuration
+# Deploy command: azd up
+
+name: ica-weekly-report
+
+metadata:
+  template: ica-weekly-report@0.0.1-beta
+
+services:
+  api:
+    # The app is a single containerised process (Node.js serves React + API)
+    project: .
+    language: js
+    host: appservice
+    docker:
+      path: ./Dockerfile
+      context: .
+      platform: linux/amd64
+
+infra:
+  provider: bicep
+  path: infra

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# React production build (Railway builds this from source)
+frontend/build/
+
+# SQLite database - never commit data
+*.db
+backend/ica_usage.db
+
+# Environment / secrets
+.env
+backend/.env
+
+# Uploads temp folder
+uploads/
+backend/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/

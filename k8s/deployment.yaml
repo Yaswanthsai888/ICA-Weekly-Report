@@ -1,0 +1,100 @@
+# k8s/deployment.yaml
+# Deployment + Service + OpenShift Route for ICA Weekly Report on IBM Cloud ROKS.
+#
+# Before applying:
+#   1. Build & push the Docker image (see openshift-deploy.sh)
+#   2. Replace <YOUR_IMAGE> below with your actual image reference
+#      e.g.  us.icr.io/<namespace>/ica-weekly-report:latest
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ica-weekly-report
+  labels:
+    app: ica-weekly-report
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ica-weekly-report
+  strategy:
+    type: Recreate          # Recreate (not RollingUpdate) — SQLite PVC is ReadWriteOnce
+  template:
+    metadata:
+      labels:
+        app: ica-weekly-report
+    spec:
+      # ROKS runs pods with a random non-root UID — no securityContext needed.
+      # The /data mount is writable because the PVC is owned by the pod's UID.
+      containers:
+        - name: app
+          image: <YOUR_IMAGE>   # e.g. us.icr.io/<namespace>/ica-weekly-report:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ica-config
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu:    "100m"
+              memory: "256Mi"
+            limits:
+              cpu:    "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ica-data-pvc
+---
+# Service — ClusterIP, exposed externally via the Route below
+apiVersion: v1
+kind: Service
+metadata:
+  name: ica-weekly-report
+  labels:
+    app: ica-weekly-report
+spec:
+  selector:
+    app: ica-weekly-report
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+# OpenShift Route — provides an HTTPS URL on the cluster's router domain
+# Edge termination: TLS terminated at the router, plain HTTP inside the cluster
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ica-weekly-report
+  labels:
+    app: ica-weekly-report
+spec:
+  to:
+    kind:   Service
+    name:   ica-weekly-report
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination:           edge
+    insecureEdgeTerminationPolicy: Redirect   # HTTP → HTTPS
+  wildcardPolicy: None

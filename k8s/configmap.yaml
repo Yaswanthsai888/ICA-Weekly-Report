@@ -1,0 +1,12 @@
+# k8s/configmap.yaml
+# Non-sensitive environment variables for the ICA Weekly Report application.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ica-config
+  labels:
+    app: ica-weekly-report
+data:
+  NODE_ENV: "production"
+  PORT: "8080"
+  DB_PATH: "/data/ica_usage.db"

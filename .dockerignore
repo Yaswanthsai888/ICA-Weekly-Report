@@ -1,0 +1,35 @@
+# .dockerignore — exclude heavy directories from Docker build context
+# Without this, all node_modules are sent to Docker (250MB+ = slow builds)
+
+# Dependency trees — reinstalled inside the container
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# React dev build — rebuilt inside the container
+frontend/build/
+
+# Local database files
+backend/ica_usage.db
+*.db
+
+# Git and editor
+.git/
+.gitignore
+.vscode/
+
+# Local env files
+backend/.env
+.env
+
+# Other deployment files not needed in the image
+.azure/
+infra/
+k8s/
+*.sh
+*.bat
+*.md
+
+# Temp uploads
+uploads/
+backend/uploads/
