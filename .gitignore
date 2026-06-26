@@ -28,3 +28,6 @@ npm-debug.log*
 
 # Editor
 .vscode/
+
+# CSV data files - contain real employee data
+*.csv
