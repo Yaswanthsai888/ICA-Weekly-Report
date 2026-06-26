@@ -1,11 +1,20 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
 // Initialize SQLite database
-// DB_PATH env var lets the cloud host (Azure App Service) redirect the file to
-// a persistent Azure Files mount (/home/data/ica_usage.db).  Falls back to the
-// local __dirname location for development.
+// DB_PATH env var lets the cloud host (Railway, Azure, etc.) redirect the file
+// to a persistent volume mount (e.g. /data/ica_usage.db).
+// Falls back to the local __dirname location for development.
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'ica_usage.db');
+
+// Ensure the parent directory exists (required when using a volume mount like
+// /data/ica_usage.db — the directory must exist before SQLite can open the file)
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
 const db = new sqlite3.Database(dbPath);
 
 // Create tables
