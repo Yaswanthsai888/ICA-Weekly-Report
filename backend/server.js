@@ -5,7 +5,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { dbHelpers } = require('./database');
+const { db, dbHelpers } = require('./database');
 const { parseCSV } = require('./csvParser');
 const { startOfWeek, endOfWeek, format, subWeeks, addDays } = require('date-fns');
 
@@ -408,6 +408,61 @@ app.get('/api/last-week-heavy-missers', async (req, res) => {
   }
 });
 
+// GET /api/debug-heavy-missers — diagnose why last-week heavy missers might be empty
+// Hit this in the browser: http://localhost:5000/api/debug-heavy-missers
+app.get('/api/debug-heavy-missers', async (req, res) => {
+  try {
+    const toLocalDateStr = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysSinceMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - daysSinceMon - 7);
+    const lastFriday = new Date(lastMonday);
+    lastFriday.setDate(lastMonday.getDate() + 4);
+    const weekStart = toLocalDateStr(lastMonday);
+    const weekEnd   = toLocalDateStr(lastFriday);
+
+    // All distinct dates stored in the DB
+    const allDates = await new Promise((resolve, reject) =>
+      db.all('SELECT DISTINCT date FROM usage_records ORDER BY date DESC LIMIT 40', [], (e, r) => e ? reject(e) : resolve(r))
+    );
+
+    // Dates that fall within the computed last-week range
+    const datesInRange = await new Promise((resolve, reject) =>
+      db.all('SELECT DISTINCT date, COUNT(*) as rows FROM usage_records WHERE date BETWEEN ? AND ? GROUP BY date', [weekStart, weekEnd], (e, r) => e ? reject(e) : resolve(r))
+    );
+
+    // Run the actual heavy-missers query
+    const heavyMissers = await dbHelpers.getHeavyMissers(weekStart, weekEnd, 2);
+
+    // All active users
+    const activeUsers = await new Promise((resolve, reject) =>
+      db.all('SELECT id, name, email FROM users WHERE is_active = 1 ORDER BY name', [], (e, r) => e ? reject(e) : resolve(r))
+    );
+
+    res.json({
+      serverTime: today.toString(),
+      serverLocalDate: toLocalDateStr(today),
+      computedWeekStart: weekStart,
+      computedWeekEnd: weekEnd,
+      last40DatesInDB: allDates.map(r => r.date),
+      datesFoundInRange: datesInRange,
+      activeUserCount: activeUsers.length,
+      activeUsers,
+      heavyMissersResult: heavyMissers,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/teams-notify  — post a reminder card to a Teams channel via Incoming Webhook
 // Body: { webhookUrl, date, users: [{name, email}], lastWeekMissers?: [{name, email, days_missed}] }
 app.post('/api/teams-notify', async (req, res) => {
@@ -474,12 +529,12 @@ app.post('/api/teams-notify', async (req, res) => {
       }
     ];
 
-    // On Mondays: append last-week persistent missers section (missed > 2 days)
+    // On Mondays: append last-week persistent missers section (missed >= 2 days)
     if (hasLastWeek) {
       adaptiveBody.push(
         {
           "type": "TextBlock",
-          "text": "Last Week - Persistent Non-Users (missed > 2 days)",
+          "text": "Last Week - Persistent Non-Users (missed 2+ days)",
           "weight": "Bolder",
           "size": "Small",
           "color": "Attention",
@@ -489,7 +544,12 @@ app.post('/api/teams-notify', async (req, res) => {
         },
         {
           "type": "FactSet",
-          "facts": lastWeekMissers.map(u => ({ title: u.name, value: `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed` })),
+          "facts": lastWeekMissers.map(u => {
+            const dates = Array.isArray(u.missed_dates) && u.missed_dates.length
+              ? u.missed_dates.join(', ')
+              : `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''}`;
+            return { title: u.name, value: `Missed: ${dates}` };
+          }),
           "spacing": "Small"
         }
       );
@@ -529,8 +589,13 @@ app.post('/api/teams-notify', async (req, res) => {
       let messageText = `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`;
 
       if (hasLastWeek) {
-        const lastWeekList = lastWeekMissers.map(u => `• ${u.name} — ${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`).join('\n');
-        messageText += `\n\n---\nLast Week - Persistent Non-Users (missed > 2 days):\n\n${lastWeekList}`;
+        const lastWeekList = lastWeekMissers.map(u => {
+          const dates = Array.isArray(u.missed_dates) && u.missed_dates.length
+            ? u.missed_dates.join(', ')
+            : `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`;
+          return `• ${u.name} — Missed: ${dates}`;
+        }).join('\n');
+        messageText += `\n\n---\nLast Week - Persistent Non-Users (missed 2+ days):\n\n${lastWeekList}`;
       }
 
       card = {

@@ -252,8 +252,13 @@ function TeamsNotifyCard({ result, webhookUrl, selectedDate }) {
     const names = result?.users?.map(u => u.name).join(', ') || '';
     let msg = `Hi team, a quick reminder - the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`;
     if (isMonDay && lastWeekMissers && lastWeekMissers.length > 0) {
-      const lwNames = lastWeekMissers.map(u => `${u.name} (${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed)`).join(', ');
-      msg += `\n\nLast Week - Persistent Non-Users (missed > 2 days): ${lwNames}`;
+      const lwNames = lastWeekMissers.map(u => {
+        const dates = Array.isArray(u.missed_dates) && u.missed_dates.length
+          ? u.missed_dates.join(', ')
+          : `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`;
+        return `${u.name} (Missed: ${dates})`;
+      }).join(', ');
+      msg += `\n\nLast Week - Persistent Non-Users (missed 2+ days): ${lwNames}`;
     }
     return `https://teams.microsoft.com/l/chat/0/0?message=${encodeURIComponent(msg)}`;
   })();

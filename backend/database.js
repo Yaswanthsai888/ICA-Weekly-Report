@@ -282,14 +282,10 @@ const dbHelpers = {
   },
 
   // Get active users who missed 2 OR MORE working days in a given date range.
-  // Returns: [{ id, name, email, scrum_master, track, days_missed }]
+  // Returns: [{ id, name, email, scrum_master, track, days_missed, missed_dates[] }]
   getHeavyMissers: (startDate, endDate, minDaysMissed = 2) => {
     return new Promise((resolve, reject) => {
-      // Count working days (Mon–Fri) in the range that actually exist in usage_records
-      // A "miss" = the user had NO usage record on that date.
-      // We find all distinct dates in the range that have at least one usage record
-      // (i.e. dates where at least someone was active), then count how many of those
-      // dates a given user did NOT appear on.
+      // Step 1: get users + their miss count, excluding header/placeholder rows
       db.all(
         `SELECT u.id, u.name, u.email, u.scrum_master, u.track,
                 (SELECT COUNT(DISTINCT d.date)
@@ -303,12 +299,41 @@ const dbHelpers = {
                 ) AS days_missed
          FROM users u
          WHERE u.is_active = 1
+           AND LOWER(u.email) != 'email'
+         GROUP BY u.id, u.name, u.email, u.scrum_master, u.track
          HAVING days_missed >= ?
          ORDER BY days_missed DESC, u.name`,
         [startDate, endDate, minDaysMissed],
         (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
+          if (err) return reject(err);
+          if (rows.length === 0) return resolve([]);
+
+          // Step 2: get all active dates in the range (dates at least one person used ICA)
+          db.all(
+            `SELECT DISTINCT date FROM usage_records WHERE date BETWEEN ? AND ? ORDER BY date`,
+            [startDate, endDate],
+            (e2, dateRows) => {
+              if (e2) return reject(e2);
+              const activeDates = dateRows.map(r => r.date);
+
+              // Step 3: for each misser, find which of those dates they did NOT use ICA
+              const results = rows.map(u => ({ ...u, missed_dates: [] }));
+              let pending = results.length;
+
+              results.forEach((u, idx) => {
+                db.all(
+                  `SELECT DISTINCT date FROM usage_records WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date`,
+                  [u.id, startDate, endDate],
+                  (e3, usedRows) => {
+                    if (e3) return reject(e3);
+                    const usedSet = new Set(usedRows.map(r => r.date));
+                    results[idx].missed_dates = activeDates.filter(d => !usedSet.has(d));
+                    if (--pending === 0) resolve(results);
+                  }
+                );
+              });
+            }
+          );
         }
       );
     });
