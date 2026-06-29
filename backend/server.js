@@ -379,19 +379,26 @@ app.post('/api/settings/:key', async (req, res) => {
 // Returns: { weekStart, weekEnd, count, users: [{name, email, days_missed}] }
 app.get('/api/last-week-heavy-missers', async (req, res) => {
   try {
-    // Compute last Mon–Fri relative to today (server time)
+    // Compute last Mon–Fri in LOCAL server time (toISOString would shift to UTC
+    // and give the wrong date in timezones ahead of UTC, e.g. IST UTC+5:30).
+    const toLocalDateStr = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Sun,1=Mon,...,6=Sat
-    // Days since last Monday: Mon=0, Tue=1, ..., Sun=6 (treat Sun as 7 days ago)
+    // Days since last Monday (local): Mon=0, Tue=1, ..., Sun=6
     const daysSinceMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const lastMonday = new Date(today);
     lastMonday.setDate(today.getDate() - daysSinceMon - 7);
     const lastFriday = new Date(lastMonday);
     lastFriday.setDate(lastMonday.getDate() + 4);
 
-    const fmt = d => d.toISOString().slice(0, 10);
-    const weekStart = fmt(lastMonday);
-    const weekEnd   = fmt(lastFriday);
+    const weekStart = toLocalDateStr(lastMonday);
+    const weekEnd   = toLocalDateStr(lastFriday);
 
     const users = await dbHelpers.getHeavyMissers(weekStart, weekEnd, 2);
     res.json({ weekStart, weekEnd, count: users.length, users });
