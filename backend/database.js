@@ -281,7 +281,7 @@ const dbHelpers = {
     });
   },
 
-  // Get active users who missed MORE THAN 2 working days in a given date range.
+  // Get active users who missed 2 OR MORE working days in a given date range.
   // Returns: [{ id, name, email, scrum_master, track, days_missed }]
   getHeavyMissers: (startDate, endDate, minDaysMissed = 2) => {
     return new Promise((resolve, reject) => {
@@ -303,7 +303,7 @@ const dbHelpers = {
                 ) AS days_missed
          FROM users u
          WHERE u.is_active = 1
-         HAVING days_missed > ?
+         HAVING days_missed >= ?
          ORDER BY days_missed DESC, u.name`,
         [startDate, endDate, minDaysMissed],
         (err, rows) => {
