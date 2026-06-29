@@ -217,31 +217,61 @@ function TeamsWebhookConfig({ webhookUrl, onSaved }) {
 }
 
 // ── Teams notification action card ────────────────────────────────────────────
+// Returns true if the given YYYY-MM-DD date string falls on a Monday
+function isMonday(dateStr) {
+  if (!dateStr) return false;
+  // Parse as local date (split to avoid UTC offset shifting the day)
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay() === 1;
+}
+
 function TeamsNotifyCard({ result, webhookUrl, selectedDate }) {
   const [posting,    setPosting]    = useState(false);
   const [postResult, setPostResult] = useState(null); // { ok, message }
+  // Last-week heavy missers — fetched lazily when selectedDate is a Monday
+  const [lastWeekMissers, setLastWeekMissers] = useState(null); // null = not fetched yet
+  const [lwLoading, setLwLoading] = useState(false);
+
   const hasWebhook = Boolean(webhookUrl?.trim());
   const hasUsers   = result?.count > 0;
+  const isMonDay   = isMonday(selectedDate);
+
+  // Fetch last-week heavy missers whenever the selected date becomes a Monday
+  useEffect(() => {
+    if (!isMonDay) { setLastWeekMissers(null); return; }
+    setLwLoading(true);
+    axios.get('/api/last-week-heavy-missers')
+      .then(r => setLastWeekMissers(r.data.users || []))
+      .catch(() => setLastWeekMissers([]))
+      .finally(() => setLwLoading(false));
+  }, [isMonDay]);
 
   // Build Teams deep-link: opens Teams app/browser to compose a message in the same channel
   // Falls back to a generic compose deep-link if no channel is configured.
   const teamsDeepLink = (() => {
     const names = result?.users?.map(u => u.name).join(', ') || '';
-    const msg = encodeURIComponent(
-      `Hi team, a quick reminder - the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`
-    );
-    return `https://teams.microsoft.com/l/chat/0/0?message=${msg}`;
+    let msg = `Hi team, a quick reminder - the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`;
+    if (isMonDay && lastWeekMissers && lastWeekMissers.length > 0) {
+      const lwNames = lastWeekMissers.map(u => `${u.name} (${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed)`).join(', ');
+      msg += `\n\nLast Week - Persistent Non-Users (missed > 2 days): ${lwNames}`;
+    }
+    return `https://teams.microsoft.com/l/chat/0/0?message=${encodeURIComponent(msg)}`;
   })();
 
   const handlePost = async () => {
     setPosting(true);
     setPostResult(null);
     try {
-      const res = await axios.post('/api/teams-notify', {
+      const payload = {
         webhookUrl,
         date:  result.date,
         users: result.users,
-      });
+      };
+      // On Mondays, attach last-week heavy missers if we have them
+      if (isMonDay && lastWeekMissers && lastWeekMissers.length > 0) {
+        payload.lastWeekMissers = lastWeekMissers;
+      }
+      const res = await axios.post('/api/teams-notify', payload);
       setPostResult({ ok: true, message: res.data.message });
     } catch (err) {
       setPostResult({ ok: false, message: err.response?.data?.error || 'Failed to post to Teams' });
@@ -255,6 +285,20 @@ function TeamsNotifyCard({ result, webhookUrl, selectedDate }) {
       <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
         Microsoft Teams
       </Typography>
+
+      {/* Monday indicator — show last-week summary when available */}
+      {isMonDay && (
+        <Box sx={{ px: 1.5, py: 1, bgcolor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 1, fontSize: '0.75rem', color: 'text.secondary' }}>
+          {lwLoading
+            ? 'Loading last week\'s persistent non-users...'
+            : lastWeekMissers && lastWeekMissers.length > 0
+              ? <><strong style={{ color: '#dc2626' }}>Monday boost:</strong> {lastWeekMissers.length} member{lastWeekMissers.length !== 1 ? 's' : ''} missed &gt;2 days last week — will be included in the reminder.</>
+              : lastWeekMissers !== null
+                ? 'No persistent non-users from last week (all missed 2 days or fewer).'
+                : null
+          }
+        </Box>
+      )}
 
       {/* One-click post via webhook */}
       <Tooltip

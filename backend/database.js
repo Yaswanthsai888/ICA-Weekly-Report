@@ -281,6 +281,39 @@ const dbHelpers = {
     });
   },
 
+  // Get active users who missed MORE THAN 2 working days in a given date range.
+  // Returns: [{ id, name, email, scrum_master, track, days_missed }]
+  getHeavyMissers: (startDate, endDate, minDaysMissed = 2) => {
+    return new Promise((resolve, reject) => {
+      // Count working days (Mon–Fri) in the range that actually exist in usage_records
+      // A "miss" = the user had NO usage record on that date.
+      // We find all distinct dates in the range that have at least one usage record
+      // (i.e. dates where at least someone was active), then count how many of those
+      // dates a given user did NOT appear on.
+      db.all(
+        `SELECT u.id, u.name, u.email, u.scrum_master, u.track,
+                (SELECT COUNT(DISTINCT d.date)
+                 FROM usage_records d
+                 WHERE d.date BETWEEN ? AND ?
+                   AND u.id NOT IN (
+                     SELECT DISTINCT ur2.user_id
+                     FROM usage_records ur2
+                     WHERE ur2.date = d.date
+                   )
+                ) AS days_missed
+         FROM users u
+         WHERE u.is_active = 1
+         HAVING days_missed > ?
+         ORDER BY days_missed DESC, u.name`,
+        [startDate, endDate, minDaysMissed],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  },
+
   // Clear all data (for re-import)
   clearAllData: () => {
     return new Promise((resolve, reject) => {

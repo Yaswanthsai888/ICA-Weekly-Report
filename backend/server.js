@@ -375,11 +375,37 @@ app.post('/api/settings/:key', async (req, res) => {
   }
 });
 
+// GET /api/last-week-heavy-missers — users who missed > 2 days last Mon-Fri
+// Returns: { weekStart, weekEnd, count, users: [{name, email, days_missed}] }
+app.get('/api/last-week-heavy-missers', async (req, res) => {
+  try {
+    // Compute last Mon–Fri relative to today (server time)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    // Days since last Monday: Mon=0, Tue=1, ..., Sun=6 (treat Sun as 7 days ago)
+    const daysSinceMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - daysSinceMon - 7);
+    const lastFriday = new Date(lastMonday);
+    lastFriday.setDate(lastMonday.getDate() + 4);
+
+    const fmt = d => d.toISOString().slice(0, 10);
+    const weekStart = fmt(lastMonday);
+    const weekEnd   = fmt(lastFriday);
+
+    const users = await dbHelpers.getHeavyMissers(weekStart, weekEnd, 2);
+    res.json({ weekStart, weekEnd, count: users.length, users });
+  } catch (error) {
+    console.error('Error fetching last-week heavy missers:', error);
+    res.status(500).json({ error: 'Failed to fetch last-week heavy missers', details: error.message });
+  }
+});
+
 // POST /api/teams-notify  — post a reminder card to a Teams channel via Incoming Webhook
-// Body: { webhookUrl, date, users: [{name, email}] }
+// Body: { webhookUrl, date, users: [{name, email}], lastWeekMissers?: [{name, email, days_missed}] }
 app.post('/api/teams-notify', async (req, res) => {
   try {
-    const { webhookUrl, date, users } = req.body;
+    const { webhookUrl, date, users, lastWeekMissers } = req.body;
 
     if (!webhookUrl || !date || !Array.isArray(users)) {
       return res.status(400).json({ error: 'webhookUrl, date and users[] are required' });
@@ -387,6 +413,9 @@ app.post('/api/teams-notify', async (req, res) => {
     if (users.length === 0) {
       return res.status(400).json({ error: 'users array is empty — no one to remind' });
     }
+
+    // lastWeekMissers is optional — only included on Mondays
+    const hasLastWeek = Array.isArray(lastWeekMissers) && lastWeekMissers.length > 0;
 
     // Detect webhook type so we can send the right payload format
     const isPowerAutomate = /powerplatform\.com|powerautomate/i.test(webhookUrl);
@@ -408,39 +437,63 @@ app.post('/api/teams-notify', async (req, res) => {
     const factRows = users.map(u => ({ title: u.name, value: u.email }));
     const plural = users.length !== 1;
 
+    // Build the Adaptive Card body — start with today's missed users
+    const adaptiveBody = [
+      {
+        "type": "TextBlock",
+        "text": `ICA Usage Reminder - ${date}`,
+        "weight": "Bolder",
+        "size": "Medium",
+        "color": "Warning",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": `${users.length} team member${plural ? 's' : ''} ${plural ? 'have' : 'has'} not yet used ICA today.`,
+        "wrap": true,
+        "spacing": "Small"
+      },
+      {
+        "type": "FactSet",
+        "facts": factRows,
+        "spacing": "Medium"
+      },
+      {
+        "type": "TextBlock",
+        "text": "Please log in and use ICA to keep the team's usage data up to date. Thank you!",
+        "wrap": true,
+        "spacing": "Medium",
+        "isSubtle": true
+      }
+    ];
+
+    // On Mondays: append last-week persistent missers section (missed > 2 days)
+    if (hasLastWeek) {
+      adaptiveBody.push(
+        {
+          "type": "TextBlock",
+          "text": "Last Week - Persistent Non-Users (missed > 2 days)",
+          "weight": "Bolder",
+          "size": "Small",
+          "color": "Attention",
+          "wrap": true,
+          "spacing": "Large",
+          "separator": true
+        },
+        {
+          "type": "FactSet",
+          "facts": lastWeekMissers.map(u => ({ title: u.name, value: `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed` })),
+          "spacing": "Small"
+        }
+      );
+    }
+
     // Adaptive Card (required by Power Automate "Post card" action)
     const adaptiveCard = {
       "type": "AdaptiveCard",
       "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
       "version": "1.4",
-      "body": [
-        {
-          "type": "TextBlock",
-          "text": `ICA Usage Reminder - ${date}`,
-          "weight": "Bolder",
-          "size": "Medium",
-          "color": "Warning",
-          "wrap": true
-        },
-        {
-          "type": "TextBlock",
-          "text": `${users.length} team member${plural ? 's' : ''} ${plural ? 'have' : 'has'} not yet used ICA today.`,
-          "wrap": true,
-          "spacing": "Small"
-        },
-        {
-          "type": "FactSet",
-          "facts": factRows,
-          "spacing": "Medium"
-        },
-        {
-          "type": "TextBlock",
-          "text": "Please log in and use ICA to keep the team's usage data up to date. Thank you!",
-          "wrap": true,
-          "spacing": "Medium",
-          "isSubtle": true
-        }
-      ],
+      "body": adaptiveBody,
       "actions": [
         {
           "type": "Action.OpenUrl",
@@ -466,6 +519,13 @@ app.post('/api/teams-notify', async (req, res) => {
     } else {
       // MessageCard format — works for both *.webhook.office.com and prod-*.logic.azure.com
       const nameList = users.map(u => `• ${u.name} (${u.email})`).join('\n');
+      let messageText = `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`;
+
+      if (hasLastWeek) {
+        const lastWeekList = lastWeekMissers.map(u => `• ${u.name} — ${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`).join('\n');
+        messageText += `\n\n---\nLast Week - Persistent Non-Users (missed > 2 days):\n\n${lastWeekList}`;
+      }
+
       card = {
         "@type":      "MessageCard",
         "@context":   "http://schema.org/extensions",
@@ -476,7 +536,7 @@ app.post('/api/teams-notify', async (req, res) => {
             "activityTitle":    `ICA Usage Reminder - ${date}`,
             "activitySubtitle": `${users.length} team member${plural ? 's' : ''} haven't used ICA today`,
             "facts": users.map(u => ({ name: u.name, value: u.email })),
-            "text": `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`,
+            "text": messageText,
             "markdown": true
           }
         ],
