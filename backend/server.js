@@ -416,7 +416,7 @@ app.post('/api/teams-notify', async (req, res) => {
       "body": [
         {
           "type": "TextBlock",
-          "text": `⚠️ ICA Usage Reminder — ${date}`,
+          "text": `ICA Usage Reminder - ${date}`,
           "weight": "Bolder",
           "size": "Medium",
           "color": "Warning",
@@ -435,7 +435,7 @@ app.post('/api/teams-notify', async (req, res) => {
         },
         {
           "type": "TextBlock",
-          "text": "Please log in and use ICA to keep the team's usage data up to date. Thank you! 🙏",
+          "text": "Please log in and use ICA to keep the team's usage data up to date. Thank you!",
           "wrap": true,
           "spacing": "Medium",
           "isSubtle": true
@@ -473,7 +473,7 @@ app.post('/api/teams-notify', async (req, res) => {
         "summary":    `ICA Reminder — ${users.length} member${plural ? 's' : ''} missed ICA on ${date}`,
         "sections": [
           {
-            "activityTitle":    `⚠️ ICA Usage Reminder — ${date}`,
+            "activityTitle":    `ICA Usage Reminder - ${date}`,
             "activitySubtitle": `${users.length} team member${plural ? 's' : ''} haven't used ICA today`,
             "facts": users.map(u => ({ name: u.name, value: u.email })),
             "text": `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`,

@@ -228,7 +228,7 @@ function TeamsNotifyCard({ result, webhookUrl, selectedDate }) {
   const teamsDeepLink = (() => {
     const names = result?.users?.map(u => u.name).join(', ') || '';
     const msg = encodeURIComponent(
-      `Hi team 👋 A quick reminder — the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`
+      `Hi team, a quick reminder - the following members haven't used ICA (IBM Consulting Assistant) yet today (${selectedDate}):\n\n${names}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`
     );
     return `https://teams.microsoft.com/l/chat/0/0?message=${msg}`;
   })();
