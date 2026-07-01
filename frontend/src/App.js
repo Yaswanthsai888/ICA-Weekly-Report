@@ -28,6 +28,7 @@ import CheckCircleIcon  from '@mui/icons-material/CheckCircle';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PeopleIcon       from '@mui/icons-material/People';
+import AccountTreeIcon  from '@mui/icons-material/AccountTree';
 import axios from 'axios';
 
 import Dashboard        from './components/Dashboard';
@@ -36,6 +37,7 @@ import UserReports      from './components/UserReports';
 import AssistantReports from './components/AssistantReports';
 import Reminders        from './components/Reminders';
 import TeamManager      from './components/TeamManager';
+import Architecture     from './components/Architecture';
 
 const SIDEBAR_WIDTH = 248;
 
@@ -90,6 +92,7 @@ const NAV_ITEMS = [
   { id: 3, label: 'Assistant Reports', icon: <SmartToyIcon />,               requiresData: true  },
   { id: 4, label: 'Send Reminders',    icon: <NotificationsActiveIcon />,    requiresData: true  },
   { id: 5, label: 'Team Manager',      icon: <PeopleIcon />,                 requiresData: true  },
+  { id: 6, label: 'Architecture',      icon: <AccountTreeIcon />,            requiresData: false },
 ];
 
 // ── Compact sidebar upload widget ─────────────────────────────────────────────
@@ -294,6 +297,7 @@ function App() {
     <AssistantReports key={refreshKey} />,
     <Reminders        key={refreshKey} />,
     <TeamManager      key={refreshKey} refreshKey={refreshKey} />,
+    <Architecture />,
   ];
 
   return (
@@ -394,7 +398,7 @@ function App() {
 
           {/* Page */}
           <Box sx={{ p: 3.5, flexGrow: 1 }}>
-            {dataUploaded
+            {(dataUploaded || activeTab === 6)
               ? PANELS[activeTab]
               : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 2, opacity: 0.6 }}>

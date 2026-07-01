@@ -15,13 +15,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.18.1",
     "cors": "^2.8.5",
     "csv-parse": "^5.5.0",
     "date-fns": "^2.30.0",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6"
+    "node-cron": "^4.5.0",
+    "sqlite3": "^5.1.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

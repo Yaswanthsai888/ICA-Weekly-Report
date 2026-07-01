@@ -496,7 +496,7 @@ app.post('/api/teams-notify', async (req, res) => {
     // Office Connector / Logic Apps use the older MessageCard format instead.
 
     // Shared: build the member rows for the Adaptive Card FactSet
-    const factRows = users.map(u => ({ title: u.name, value: u.email }));
+    const factRows = users.map(u => ({ title: u.name, value: '' }));
     const plural = users.length !== 1;
 
     // Build the Adaptive Card body — start with today's missed users
@@ -544,12 +544,10 @@ app.post('/api/teams-notify', async (req, res) => {
         },
         {
           "type": "FactSet",
-          "facts": lastWeekMissers.map(u => {
-            const dates = Array.isArray(u.missed_dates) && u.missed_dates.length
-              ? u.missed_dates.join(', ')
-              : `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''}`;
-            return { title: u.name, value: `Missed: ${dates}` };
-          }),
+          "facts": lastWeekMissers.map(u => ({
+            title: u.name,
+            value: `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`
+          })),
           "spacing": "Small"
         }
       );
@@ -585,16 +583,13 @@ app.post('/api/teams-notify', async (req, res) => {
       };
     } else {
       // MessageCard format — works for both *.webhook.office.com and prod-*.logic.azure.com
-      const nameList = users.map(u => `• ${u.name} (${u.email})`).join('\n');
+      const nameList = users.map(u => `• ${u.name}`).join('\n');
       let messageText = `Hi team, the following member${plural ? 's' : ''} have not yet used ICA (IBM Consulting Assistant) today (${date}):\n\n${nameList}\n\nPlease log in at https://remea.ica.ibm.com/ica/launchpad/teams/6960ac7f62128d5938d46839 and use ICA. Thank you!`;
 
       if (hasLastWeek) {
-        const lastWeekList = lastWeekMissers.map(u => {
-          const dates = Array.isArray(u.missed_dates) && u.missed_dates.length
-            ? u.missed_dates.join(', ')
-            : `${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`;
-          return `• ${u.name} — Missed: ${dates}`;
-        }).join('\n');
+        const lastWeekList = lastWeekMissers.map(u =>
+          `• ${u.name} — ${u.days_missed} day${u.days_missed !== 1 ? 's' : ''} missed`
+        ).join('\n');
         messageText += `\n\n---\nLast Week - Persistent Non-Users (missed 2+ days):\n\n${lastWeekList}`;
       }
 
@@ -607,7 +602,7 @@ app.post('/api/teams-notify', async (req, res) => {
           {
             "activityTitle":    `ICA Usage Reminder - ${date}`,
             "activitySubtitle": `${users.length} team member${plural ? 's' : ''} haven't used ICA today`,
-            "facts": users.map(u => ({ name: u.name, value: u.email })),
+            "facts": users.map(u => ({ name: u.name, value: '' })),
             "text": messageText,
             "markdown": true
           }
