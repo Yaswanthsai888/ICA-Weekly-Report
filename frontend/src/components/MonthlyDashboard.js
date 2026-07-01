@@ -49,9 +49,10 @@ function MonthlyDashboard() {
     currentDate.getFullYear() === today.getFullYear() &&
     currentDate.getMonth()    === today.getMonth();
 
-  const monthLabel = `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-  const weekLabel  = ws => format(parseISO(ws), 'MMM dd');
-  const hasData    = data?.rows?.length > 0;
+  const monthLabel      = `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  const weekLabel       = ws => format(parseISO(ws), 'MMM dd');
+  const hasData         = data?.rows?.length > 0;
+  const totalActive     = data?.totalActiveUsers ?? data?.rows?.length ?? 0;
 
   return (
     <Box>
@@ -104,7 +105,7 @@ function MonthlyDashboard() {
               <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Total Usage</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Total Interactions</Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1 }}>{data.grandTotal}</Typography>
                   </Box>
                   <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -120,7 +121,7 @@ function MonthlyDashboard() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Active Users</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1 }}>{data.rows.length}</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1 }}>{totalActive}</Typography>
                   </Box>
                   <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <GroupIcon sx={{ color: '#7c3aed', fontSize: 22 }} />
@@ -133,7 +134,7 @@ function MonthlyDashboard() {
             <Card>
               <CardContent sx={{ p: 2.5 }}>
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Weeks Covered</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Weeks in Month</Typography>
                   <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1 }}>{data.weeks.length}</Typography>
                 </Box>
               </CardContent>
@@ -145,7 +146,7 @@ function MonthlyDashboard() {
                 <Box>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>Avg / User</Typography>
                   <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1 }}>
-                    {(data.grandTotal / data.rows.length).toFixed(1)}
+                    {totalActive > 0 ? (data.grandTotal / totalActive).toFixed(1) : '0.0'}
                   </Typography>
                 </Box>
               </CardContent>
@@ -157,7 +158,7 @@ function MonthlyDashboard() {
       {loading && <Box display="flex" justifyContent="center" p={6}><CircularProgress /></Box>}
       {error   && <Alert severity="error"   sx={{ borderRadius: 2 }}>{error}</Alert>}
 
-      {!loading && !error && !hasData && (
+      {!loading && !error && !hasData && totalActive === 0 && (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
           No usage data found for {monthLabel}. Navigate to another month or upload a CSV.
         </Alert>
@@ -225,23 +226,30 @@ function MonthlyDashboard() {
               </TableHead>
 
               <TableBody>
-                {data.rows.map((row, idx) => (
+                {data.rows.map((row, idx) => {
+                  const isNonUser = row.total === 0;
+                  return (
                   <TableRow
                     key={row.email}
                     hover
-                    sx={{ bgcolor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}
+                    sx={{ bgcolor: isNonUser ? '#fffbf0' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc') }}
                   >
                     {/* Name */}
                     <TableCell
                       sx={{
                         fontWeight: 500,
                         fontSize: '0.85rem',
-                        color: '#0f172a',
+                        color: isNonUser ? '#92400e' : '#0f172a',
                         borderRight: '1px solid #e2e8f0',
                         py: 1.25,
                       }}
                     >
                       {row.name}
+                      {isNonUser && (
+                        <Typography component="span" sx={{ ml: 1, fontSize: '0.7rem', color: '#b45309', fontWeight: 600, bgcolor: '#fef3c7', px: 0.75, py: 0.2, borderRadius: 1 }}>
+                          not using
+                        </Typography>
+                      )}
                     </TableCell>
 
                     {/* Weekly counts */}
@@ -270,15 +278,16 @@ function MonthlyDashboard() {
                       sx={{
                         fontWeight: 700,
                         fontSize: '0.88rem',
-                        color: '#2563eb',
-                        bgcolor: '#eff6ff',
+                        color: isNonUser ? '#b45309' : '#2563eb',
+                        bgcolor: isNonUser ? '#fef3c7' : '#eff6ff',
                         py: 1.25,
                       }}
                     >
                       {row.total}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
 
                 {/* Grand Total row */}
                 <TableRow sx={{ bgcolor: '#0f172a' }}>

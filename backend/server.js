@@ -244,10 +244,19 @@ app.get('/api/monthly-summary', async (req, res) => {
     const firstDay = format(new Date(y, m - 1, 1), 'yyyy-MM-dd');
     const lastDay  = format(new Date(y, m, 0), 'yyyy-MM-dd');       // day 0 of next month = last day of this month
 
-    const usage = await dbHelpers.getUsageByDateRange(firstDay, lastDay);
+    const [usage, allActiveUsers] = await Promise.all([
+      dbHelpers.getUsageByDateRange(firstDay, lastDay),
+      new Promise((resolve, reject) =>
+        db.all(
+          `SELECT id, name, email FROM users WHERE is_active = 1 AND LOWER(email) != 'email' ORDER BY name`,
+          [],
+          (err, rows) => err ? reject(err) : resolve(rows)
+        )
+      ),
+    ]);
 
-    if (usage.length === 0) {
-      return res.json({ weeks: [], users: [], rows: [], grandTotals: {} });
+    if (usage.length === 0 && allActiveUsers.length === 0) {
+      return res.json({ weeks: [], users: [], rows: [], grandTotals: {}, grandTotal: 0, totalActiveUsers: 0 });
     }
 
     // Collect all unique week-start dates (Monday-based) within the range
@@ -259,7 +268,7 @@ app.get('/api/monthly-summary', async (req, res) => {
     });
     const weeks = Array.from(weekStartSet).sort();
 
-    // Build per-user, per-week counts
+    // Build per-user, per-week counts from usage records
     const userMap = {};   // email → { name, weekCounts: { weekStart: count } }
     usage.forEach(record => {
       const ws = format(startOfWeek(new Date(record.date), { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -267,6 +276,13 @@ app.get('/api/monthly-summary', async (req, res) => {
         userMap[record.email] = { name: record.name, email: record.email, weekCounts: {} };
       }
       userMap[record.email].weekCounts[ws] = (userMap[record.email].weekCounts[ws] || 0) + 1;
+    });
+
+    // Merge in active users who had zero usage this month
+    allActiveUsers.forEach(u => {
+      if (!userMap[u.email]) {
+        userMap[u.email] = { name: u.name, email: u.email, weekCounts: {} };
+      }
     });
 
     // Build sorted rows with grand total per user
@@ -285,7 +301,7 @@ app.get('/api/monthly-summary', async (req, res) => {
       grandTotal += grandTotals[ws];
     });
 
-    res.json({ weeks, rows, grandTotals, grandTotal, month: m, year: y });
+    res.json({ weeks, rows, grandTotals, grandTotal, totalActiveUsers: allActiveUsers.length, month: m, year: y });
   } catch (error) {
     console.error('Error fetching monthly summary:', error);
     res.status(500).json({ error: 'Failed to fetch monthly summary', details: error.message });
