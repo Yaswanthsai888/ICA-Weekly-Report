@@ -120,7 +120,16 @@ function AssistantReports() {
         <FormControl fullWidth size="small" sx={{ mt: 2 }}>
           <InputLabel>Select Week</InputLabel>
           <Select value={selectedWeek} label="Select Week" onChange={e => setSelectedWeek(e.target.value)}>
-            {weeks.map(w => <MenuItem key={w.startDate} value={w.startDate}>{w.label}</MenuItem>)}
+            {weeks.map(w => (
+              <MenuItem key={w.startDate} value={w.startDate}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+                  <span>{w.label}</span>
+                  <Typography component="span" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                    {w.startDate} → {w.endDate}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
       </Paper>

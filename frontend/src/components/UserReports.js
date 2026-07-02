@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, FormControl, InputLabel, Select, MenuItem,
   Grid, Card, CardContent, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, CircularProgress, Alert, Chip, Stack,
+  TableHead, TableRow, CircularProgress, Alert, Chip, Stack, Button,
 } from '@mui/material';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
@@ -11,8 +11,9 @@ import {
 import PersonIcon    from '@mui/icons-material/Person';
 import SmartToyIcon  from '@mui/icons-material/SmartToy';
 import EventNoteIcon from '@mui/icons-material/EventNote';
+import DownloadIcon  from '@mui/icons-material/Download';
 import axios from 'axios';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -27,6 +28,8 @@ const CustomTooltip = ({ active, payload, label }) => {
     </Box>
   );
 };
+
+const ALL_TIME = '__all__';
 
 function UserReports() {
   const [users, setUsers]             = useState([]);
@@ -59,7 +62,8 @@ function UserReports() {
     try {
       const r = await axios.get('/api/available-weeks');
       setWeeks(r.data);
-      if (r.data.length > 0) setSelectedWeek(r.data[0].startDate);
+      // Default to "All time" so a presenter sees the full picture immediately
+      setSelectedWeek(ALL_TIME);
     } catch { setError('Failed to fetch weeks.'); }
   };
 
@@ -67,17 +71,25 @@ function UserReports() {
     setLoading(true);
     setError(null);
     try {
-      const week = weeks.find(w => w.startDate === selectedWeek);
-      if (!week) return;
+      let startDate, endDate;
+      if (selectedWeek === ALL_TIME) {
+        startDate = '2000-01-01';
+        endDate   = '2099-12-31';
+      } else {
+        const week = weeks.find(w => w.startDate === selectedWeek);
+        if (!week) return;
+        startDate = week.startDate;
+        endDate   = week.endDate;
+      }
       const r = await axios.get(`/api/user-usage/${selectedUser}`, {
-        params: { startDate: week.startDate, endDate: week.endDate },
+        params: { startDate, endDate },
       });
       setUserUsage(r.data);
     } catch { setError('Failed to fetch user usage.'); }
     finally { setLoading(false); }
   };
 
-  // Derived data
+  // Derived data — use parseISO to avoid timezone shifts
   const usageByDate = userUsage.reduce((acc, r) => {
     acc[r.date] = acc[r.date] || [];
     acc[r.date].push(r.assistant_name);
@@ -85,9 +97,24 @@ function UserReports() {
   }, {});
 
   const dailyData = Object.keys(usageByDate).sort().map(d => ({
-    date: format(new Date(d), 'MMM dd'),
+    date: format(parseISO(d), 'MMM dd'),
     count: usageByDate[d].length,
   }));
+
+  const exportToCSV = () => {
+    const weekLabel = selectedWeek === ALL_TIME
+      ? 'all-time'
+      : weeks.find(w => w.startDate === selectedWeek)?.startDate || selectedWeek;
+    const userName = users.find(u => u.id === selectedUser)?.name?.replace(/\s+/g, '_') || selectedUser;
+    const csv = [
+      'Date,Assistant',
+      ...userUsage.map(r => `${r.date},"${r.assistant_name}"`),
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `user-usage-${userName}-${weekLabel}.csv`;
+    a.click();
+  };
 
   const assistantFreq = userUsage.reduce((acc, r) => {
     acc[r.assistant_name] = (acc[r.assistant_name] || 0) + 1;
@@ -104,7 +131,19 @@ function UserReports() {
     <Box>
       {/* ── Selectors ── */}
       <Paper elevation={0} sx={{ p: 2.5, mb: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>User Reports</Typography>
+        <Stack direction="row" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>User Reports</Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={exportToCSV}
+            disabled={userUsage.length === 0}
+            sx={{ borderRadius: 2 }}
+          >
+            Export CSV
+          </Button>
+        </Stack>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <FormControl fullWidth size="small">
@@ -118,8 +157,9 @@ function UserReports() {
           </Grid>
           <Grid item xs={12} md={6}>
             <FormControl fullWidth size="small">
-              <InputLabel>Select Week</InputLabel>
-              <Select value={selectedWeek} label="Select Week" onChange={e => setSelectedWeek(e.target.value)}>
+              <InputLabel>Time Period</InputLabel>
+              <Select value={selectedWeek} label="Time Period" onChange={e => setSelectedWeek(e.target.value)}>
+                <MenuItem value={ALL_TIME}><em>All Time</em></MenuItem>
                 {weeks.map(w => (
                   <MenuItem key={w.startDate} value={w.startDate}>{w.label}</MenuItem>
                 ))}
@@ -279,7 +319,9 @@ function UserReports() {
 
       {!loading && userUsage.length === 0 && selectedUser && selectedWeek && (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No usage data found for this user and week.
+          {selectedWeek === ALL_TIME
+            ? 'No usage data found for this user.'
+            : 'No usage data found for this user in the selected week. Try "All Time" to see their full history.'}
         </Alert>
       )}
     </Box>

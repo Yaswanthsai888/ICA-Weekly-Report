@@ -285,13 +285,18 @@ app.get('/api/monthly-summary', async (req, res) => {
       }
     });
 
-    // Build sorted rows with grand total per user
+    // Build sorted rows: active users (total > 0) by total desc, then zero-users alphabetically at bottom
     const rows = Object.values(userMap)
       .map(u => {
         const total = Object.values(u.weekCounts).reduce((s, v) => s + v, 0);
         return { name: u.name, email: u.email, weekCounts: u.weekCounts, total };
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => {
+        if (a.total === 0 && b.total === 0) return a.name.localeCompare(b.name);
+        if (a.total === 0) return 1;
+        if (b.total === 0) return -1;
+        return b.total - a.total;
+      });
 
     // Column grand totals
     const grandTotals = {};

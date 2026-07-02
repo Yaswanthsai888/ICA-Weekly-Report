@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
+import DownloadIcon from '@mui/icons-material/Download';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GroupIcon from '@mui/icons-material/Group';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -144,6 +145,19 @@ function UsageExplorer() {
   const uniqueAssistants = [...new Set(allUsage.map(r => r.assistant_name))].sort();
   const hasActiveFilter  = selectedUser !== 'all' || selectedAssistant !== 'all' || searchTerm;
 
+  const exportToCSV = () => {
+    const rows = filteredData.slice(0, 500);
+    const csv = [
+      'Date,User,Email,Assistant',
+      ...rows.map(r => `${r.date},"${r.name}","${r.email}","${r.assistant_name}"`),
+    ].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const suffix = startDate && endDate ? `${startDate}_${endDate}` : 'all';
+    a.download = `usage-explorer-${suffix}.csv`;
+    a.click();
+  };
+
   // KPI calculations
   const totalRecords    = filteredData.length;
   const uniqueUsers     = new Set(filteredData.map(r => r.email)).size;
@@ -191,6 +205,16 @@ function UsageExplorer() {
               Clear
             </Button>
           )}
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={exportToCSV}
+            disabled={filteredData.length === 0}
+            sx={{ borderRadius: 2 }}
+          >
+            Export CSV
+          </Button>
         </Stack>
 
         <Grid container spacing={2}>

@@ -29,6 +29,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PeopleIcon       from '@mui/icons-material/People';
 import AccountTreeIcon  from '@mui/icons-material/AccountTree';
+import SlideshowIcon    from '@mui/icons-material/Slideshow';
 import axios from 'axios';
 
 import Dashboard        from './components/Dashboard';
@@ -38,6 +39,7 @@ import AssistantReports from './components/AssistantReports';
 import Reminders        from './components/Reminders';
 import TeamManager      from './components/TeamManager';
 import Architecture     from './components/Architecture';
+import Presentation     from './components/Presentation';
 
 const SIDEBAR_WIDTH = 248;
 
@@ -93,6 +95,7 @@ const NAV_ITEMS = [
   { id: 4, label: 'Send Reminders',    icon: <NotificationsActiveIcon />,    requiresData: true  },
   { id: 5, label: 'Team Manager',      icon: <PeopleIcon />,                 requiresData: true  },
   { id: 6, label: 'Architecture',      icon: <AccountTreeIcon />,            requiresData: false },
+  { id: 7, label: 'Presentation',      icon: <SlideshowIcon />,              requiresData: false },
 ];
 
 // ── Compact sidebar upload widget ─────────────────────────────────────────────
@@ -268,24 +271,35 @@ function App() {
   const [activeTab, setActiveTab]       = useState(0);
   const [dataUploaded, setDataUploaded] = useState(false);
   const [checking, setChecking]         = useState(true);
+  const [recordCount, setRecordCount]   = useState(0);
   // Refresh key — increment to force child re-fetch after upload
   const [refreshKey, setRefreshKey]     = useState(0);
 
-  useEffect(() => {
+  const checkDataStatus = useCallback(() => {
     axios.get('/api/users')
       .then(r => { if (r.data?.length > 0) setDataUploaded(true); })
       .catch(() => {})
       .finally(() => setChecking(false));
+    axios.get('/api/usage', { params: { startDate: '2000-01-01', endDate: '2099-12-31' } })
+      .then(r => setRecordCount(r.data?.length || 0))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => { checkDataStatus(); }, [checkDataStatus]);
 
   const handleUploadSuccess = () => {
     setDataUploaded(true);
     setRefreshKey(k => k + 1);   // causes active panel to re-fetch
     if (!dataUploaded) setActiveTab(0);  // first upload → go to Dashboard
+    // Refresh count after upload
+    axios.get('/api/usage', { params: { startDate: '2000-01-01', endDate: '2099-12-31' } })
+      .then(r => setRecordCount(r.data?.length || 0))
+      .catch(() => {});
   };
 
   const handleClearData = () => {
     setDataUploaded(false);
+    setRecordCount(0);
     setRefreshKey(k => k + 1);
   };
 
@@ -298,6 +312,7 @@ function App() {
     <Reminders        key={refreshKey} />,
     <TeamManager      key={refreshKey} refreshKey={refreshKey} />,
     <Architecture />,
+    <Presentation     key="presentation" onLaunch={() => setActiveTab(0)} />,
   ];
 
   return (
@@ -334,7 +349,9 @@ function App() {
               </Box>
             ) : (
               <Chip size="small"
-                label={dataUploaded ? 'Data loaded' : 'No data — upload below'}
+                label={dataUploaded
+                  ? `${recordCount.toLocaleString()} records`
+                  : 'No data — upload below'}
                 sx={{
                   bgcolor: dataUploaded ? 'rgba(22,163,74,0.15)' : 'rgba(148,163,184,0.1)',
                   color:   dataUploaded ? '#4ade80' : '#94a3b8',
@@ -388,17 +405,29 @@ function App() {
           <Box sx={{
             height: 56, bgcolor: 'background.paper',
             borderBottom: '1px solid', borderColor: 'divider',
-            display: 'flex', alignItems: 'center', px: 4,
+            display: 'flex', alignItems: 'center', px: 4, gap: 2,
             position: 'sticky', top: 0, zIndex: 50,
           }}>
-            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 600 }}>
+            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 600, flexGrow: 1 }}>
               {NAV_ITEMS.find(n => n.id === activeTab)?.label}
             </Typography>
+            {dataUploaded && (
+              <Chip
+                size="small"
+                label={`${recordCount.toLocaleString()} records`}
+                sx={{
+                  bgcolor: 'rgba(37,99,235,0.08)', color: '#2563eb',
+                  border: '1px solid rgba(37,99,235,0.2)',
+                  fontSize: '0.7rem', height: 22, fontWeight: 600,
+                  '.MuiChip-label': { px: 1 },
+                }}
+              />
+            )}
           </Box>
 
           {/* Page */}
           <Box sx={{ p: 3.5, flexGrow: 1 }}>
-            {(dataUploaded || activeTab === 6)
+            {(dataUploaded || activeTab === 6 || activeTab === 7)
               ? PANELS[activeTab]
               : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 2, opacity: 0.6 }}>

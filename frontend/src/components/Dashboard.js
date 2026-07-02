@@ -148,9 +148,10 @@ function Dashboard() {
     currentDate.getFullYear() === today.getFullYear() &&
     currentDate.getMonth()    === today.getMonth();
 
-  const monthLabel = `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-  const weekLabel  = ws => format(parseISO(ws), 'MMM dd');
-  const hasData    = data?.rows?.length > 0;
+  const monthLabel      = `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  const weekLabel       = ws => format(parseISO(ws), 'MMM dd');
+  const hasData         = data?.rows?.length > 0;
+  const totalActive     = data?.totalActiveUsers ?? data?.rows?.length ?? 0;
 
   return (
     <Box>
@@ -209,7 +210,7 @@ function Dashboard() {
               <KpiCard icon={<TrendingUpIcon />} label="Total Interactions" value={data.grandTotal.toLocaleString()} accent="#2563eb" />
             </Grid>
             <Grid item xs={6} sm={3}>
-              <KpiCard icon={<GroupIcon />} label="Active Users" value={data.rows.length} accent="#7c3aed" />
+              <KpiCard icon={<GroupIcon />} label="Active Users" value={totalActive} accent="#7c3aed" />
             </Grid>
             <Grid item xs={6} sm={3}>
               <KpiCard icon={<QueryStatsIcon />} label="Weeks in Month" value={data.weeks.length} accent="#0891b2" />
@@ -218,7 +219,7 @@ function Dashboard() {
               <KpiCard
                 icon={<BarChartIcon />}
                 label="Avg / User"
-                value={(data.grandTotal / data.rows.length).toFixed(1)}
+                value={totalActive > 0 ? (data.grandTotal / totalActive).toFixed(1) : '0.0'}
                 accent="#16a34a"
               />
             </Grid>
@@ -271,11 +272,18 @@ function Dashboard() {
                 </TableHead>
 
                 <TableBody>
-                  {data.rows.map((row, idx) => (
+                  {data.rows.map((row, idx) => {
+                    const isNonUser = row.total === 0;
+                    return (
                     <TableRow key={row.email} hover
-                      sx={{ bgcolor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                      <TableCell sx={{ fontWeight: 500, fontSize: '0.85rem', color: '#0f172a', borderRight: '1px solid #e2e8f0', py: 1.25 }}>
+                      sx={{ bgcolor: isNonUser ? '#fffbf0' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc') }}>
+                      <TableCell sx={{ fontWeight: 500, fontSize: '0.85rem', color: isNonUser ? '#92400e' : '#0f172a', borderRight: '1px solid #e2e8f0', py: 1.25 }}>
                         {row.name}
+                        {isNonUser && (
+                          <Typography component="span" sx={{ ml: 1, fontSize: '0.7rem', color: '#b45309', fontWeight: 600, bgcolor: '#fef3c7', px: 0.75, py: 0.2, borderRadius: 1 }}>
+                            not using
+                          </Typography>
+                        )}
                       </TableCell>
 
                       {data.weeks.map((ws, i) => {
@@ -293,11 +301,12 @@ function Dashboard() {
                         );
                       })}
 
-                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#2563eb', bgcolor: '#eff6ff', py: 1.25 }}>
+                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.88rem', color: isNonUser ? '#b45309' : '#2563eb', bgcolor: isNonUser ? '#fef3c7' : '#eff6ff', py: 1.25 }}>
                         {row.total}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
 
                   {/* Grand Total footer */}
                   <TableRow sx={{ bgcolor: '#0f172a' }}>

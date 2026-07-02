@@ -396,8 +396,10 @@ export default function Reminders() {
     ? `${baseUrl}/api/missed-users?date=${selectedDate}`
     : `${baseUrl}/api/missed-users?date=YYYY-MM-DD`;
 
+  const isFutureDate = selectedDate > todayLocal();
+
   const handleFetch = useCallback(async () => {
-    if (!selectedDate) return;
+    if (!selectedDate || isFutureDate) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -409,7 +411,7 @@ export default function Reminders() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, isFutureDate]);
 
   // Email body helpers
   const emailSubject = 'Reminder: Please use ICA (IBM Consulting Assistant) today';
@@ -464,15 +466,19 @@ export default function Reminders() {
                   cursor: 'text',
                 }}
               />
-              <Button
-                variant="contained"
-                onClick={handleFetch}
-                disabled={!selectedDate || loading}
-                startIcon={loading ? null : <PersonOffIcon />}
-                sx={{ height: 40, px: 2.5, whiteSpace: 'nowrap' }}
-              >
-                {loading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Check'}
-              </Button>
+              <Tooltip title={isFutureDate ? 'Cannot check a future date — no data yet' : ''}>
+                <span>
+                  <Button
+                    variant="contained"
+                    onClick={handleFetch}
+                    disabled={!selectedDate || loading || isFutureDate}
+                    startIcon={loading ? null : <PersonOffIcon />}
+                    sx={{ height: 40, px: 2.5, whiteSpace: 'nowrap' }}
+                  >
+                    {loading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Check'}
+                  </Button>
+                </span>
+              </Tooltip>
             </Box>
           </Paper>
 
@@ -493,10 +499,10 @@ export default function Reminders() {
               }}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                    {result.count > 0
-                      ? `${result.count} user${result.count !== 1 ? 's' : ''} missed ICA`
-                      : '✓ Everyone used ICA'}
-                  </Typography>
+                     {result.count > 0
+                       ? `${result.count} user${result.count !== 1 ? 's' : ''} missed ICA`
+                       : '✓ Everyone submitted for this date'}
+                   </Typography>
                   <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
                     on {result.date}
                   </Typography>
