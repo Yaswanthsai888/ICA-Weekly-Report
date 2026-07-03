@@ -105,17 +105,17 @@ function SlideHero() {
         From <Box component="span" sx={{ color: '#fbbf24' }}>Chaos</Box> to{' '}
         <Box component="span" sx={{ color: '#60a5fa' }}>Control</Box>
       </Typography>
-      <Typography sx={{ fontSize: 'clamp(0.85rem,1.2vw,1rem)', color: S.muted, maxWidth: 600, lineHeight: 1.8, mb: 0.75 }}>
-        A lazy developer's journey to eliminating manual work.
+      <Typography sx={{ fontSize: 'clamp(0.85rem,1.2vw,1rem)', color: S.muted, maxWidth: 620, lineHeight: 1.8, mb: 0.75 }}>
+        How a simple Teams reminder card evolved into a complete ICA analytics platform.
       </Typography>
       <Typography sx={{ fontSize: '0.82rem', color: '#60a5fa', fontStyle: 'italic', mb: 3, opacity: 0.8 }}>
-        "The only thing not using AI... was the AI usage tracking process itself."
+        "If you've ever received one of those reminder cards... today the mystery ends."
       </Typography>
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 780 }}>
-        <InfoCard icon="👥" label="Team"      value="Active"    />
-        <InfoCard icon="🤖" label="ICA Tools" value="Tracked"   />
-        <InfoCard icon="📊" label="Analytics" value="Real-time" />
-        <InfoCard icon="🔔" label="Reminders" value="Automated" />
+        <InfoCard icon="👥" label="Team Size"   value="20 Members"  />
+        <InfoCard icon="🤖" label="ICA Tools"   value="6 Assistants"/>
+        <InfoCard icon="📊" label="Analytics"   value="Real-time"   />
+        <InfoCard icon="🔔" label="Reminders"   value="Automated"   />
       </Box>
     </Box>
   );
@@ -156,10 +156,10 @@ function SlideOldWay({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 900 }}>
       <Tag color="#fbbf24" bg="rgba(217,119,6,0.15)" border="rgba(217,119,6,0.3)">The Manual Process</Tag>
       <Typography sx={{ fontSize: 'clamp(1.3rem,2.4vw,1.9rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-        How It <Box component="span" sx={{ color: '#fbbf24' }}>Used to Work</Box>
+        This Was the Process We Followed <Box component="span" sx={{ color: '#fbbf24' }}>Every Single Day</Box>
       </Typography>
-      <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mb: 3, maxWidth: 560 }}>
-        Three steps. Every single working day.
+      <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mb: 3, maxWidth: 600 }}>
+        It worked. But it depended entirely on someone manually checking the data every day.
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 0, width: '100%', minHeight: 180 }}>
@@ -202,8 +202,11 @@ function SlideOldWay({ step }) {
                 <Typography sx={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 600 }}>{label}</Typography>
               </Box>
             ))}
-            <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.8rem', color: '#fbbf24', fontStyle: 'italic', mt: 0.5 }}>
-              "I wasn't really using AI... I was the AI."
+            <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.75rem', color: S.muted, mt: 0.75 }}>
+              That's when I started wondering...
+            </Typography>
+            <Typography sx={{ width: '100%', textAlign: 'center', fontSize: '0.88rem', color: '#fbbf24', fontStyle: 'italic', fontWeight: 600 }}>
+              "Can AI help us track AI usage?"
             </Typography>
           </Box>
         </FadeIn>
@@ -221,11 +224,17 @@ function SlideMessage({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 860 }}>
       <Tag color="#f87171" bg="rgba(220,38,38,0.15)" border="rgba(220,38,38,0.3)">The Daily Notification</Tag>
       <Typography sx={{ fontSize: 'clamp(1.3rem,2.4vw,1.9rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-        What the Team <Box component="span" sx={{ color: '#f87171' }}>Received</Box> Every Morning
+        On the Surface — a <Box component="span" sx={{ color: '#f87171' }}>Simple Teams Message</Box>
       </Typography>
       <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mb: 2.5 }}>
-        Behind this tiny notification... there was a lot more human effort than it deserved.
+        The reminder took only a few seconds to appear... but quite a bit longer to prepare.
       </Typography>
+
+      {!showLeft && !showRight && (
+        <Typography sx={{ fontSize: '0.8rem', color: S.muted, textAlign: 'center', mb: 1.5, fontStyle: 'italic' }}>
+          Click Next to see what this notification looked like — before and after automation.
+        </Typography>
+      )}
 
       <Box sx={{ display: 'flex', gap: 2, width: '100%', alignItems: 'stretch', minHeight: 260 }}>
 
@@ -346,10 +355,10 @@ function SlidePain({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 860 }}>
       <Tag color="#f87171" bg="rgba(220,38,38,0.15)" border="rgba(220,38,38,0.3)">The Gap</Tag>
       <Typography sx={{ fontSize: 'clamp(1.3rem,2.4vw,1.9rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-      <Box component="span" sx={{ color: '#f4f1eb' }}>What Was</Box> <Box component="span" sx={{ color: '#f87171' }}>Missing</Box>
+        We Had <Box component="span" sx={{ color: '#f4f1eb' }}>Data</Box> — But We Didn't Have <Box component="span" sx={{ color: '#f87171' }}>Insights</Box>
       </Typography>
       <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mb: 2.5 }}>
-        We had data... but we weren't really learning anything from it.
+        We couldn't answer the simplest questions about our own ICA adoption.
       </Typography>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1.5, width: '100%' }}>
@@ -386,18 +395,18 @@ function SlideTransform({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 860 }}>
       <Tag color="#c4b5fd" bg="rgba(124,58,237,0.15)" border="rgba(124,58,237,0.3)">The Turning Point</Tag>
       <Typography sx={{ fontSize: 'clamp(1.3rem,2.4vw,1.9rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-        <Box component="span" sx={{ color: '#f87171' }}>Before</Box> vs{' '}
-        <Box component="span" sx={{ color: '#4ade80' }}>After</Box>
+        The <Box component="span" sx={{ color: '#c4b5fd' }}>Realisation</Box>
       </Typography>
 
       {showIrony && (
         <FadeIn sx={{ mb: 2.5, width: '100%', maxWidth: 700 }}>
           <Box sx={{ bgcolor: 'rgba(37,99,235,0.1)', border: '1.5px solid rgba(37,99,235,0.3)', borderRadius: 2, p: 2.25, textAlign: 'center' }}>
             <Typography sx={{ fontSize: '0.9rem', color: '#93c5fd', lineHeight: 1.8, fontStyle: 'italic' }}>
-              "Then one day I realised something ironic.<br/>
-              We were encouraging everyone to use AI every day...<br/>
+              "Then I noticed something that felt a little ironic.<br/>
+              We were encouraging everyone to adopt AI every day...<br/>
               but the process of <strong style={{ color: S.txt }}>tracking AI usage</strong> was <strong style={{ color: '#f87171' }}>completely manual</strong>.<br/>
-              That didn't feel right. So I decided to <strong style={{ color: '#4ade80' }}>automate the automation</strong>."
+              That didn't seem right. So instead of improving the Excel sheet...<br/>
+              I decided to <strong style={{ color: '#4ade80' }}>remove it from the process altogether</strong>."
             </Typography>
           </Box>
         </FadeIn>
@@ -448,7 +457,7 @@ function SlideTransform({ step }) {
 
       {!showIrony && (
         <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mt: 1 }}>
-          Click Next to reveal the irony that started it all.
+          Click Next to see the observation that started it all.
         </Typography>
       )}
     </Box>
@@ -470,20 +479,29 @@ function SlideFeatures({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 820 }}>
       <Tag color="#4ade80" bg="rgba(22,163,74,0.15)" border="rgba(22,163,74,0.3)">What It Does</Tag>
       <Typography sx={{ fontSize: 'clamp(1.3rem,2.4vw,1.9rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-        Instead of Excel... <Box component="span" sx={{ color: '#60a5fa' }}>a complete platform</Box>
+        The Goal Was No Longer Just <Box component="span" sx={{ color: '#f87171' }}>Sending Reminders</Box>
       </Typography>
       <Typography sx={{ fontSize: '0.86rem', color: S.muted, textAlign: 'center', mb: 2 }}>
-        Built with <strong style={{ color: S.txt }}>React · Node.js · SQLite</strong>. Deployed. Running.
+        It became a complete platform — built with <strong style={{ color: S.txt }}>React · Node.js · SQLite</strong>. Deployed. Running.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1.25, width: '100%' }}>
         {features.map((f, i) => {
           const visible = step > i;
           return visible ? (
             <FadeIn key={f.title}>
-              <Box sx={{ bgcolor: S.card, border: `1px solid ${S.bdr}`, borderRadius: 1.5, p: 1.5, display: 'flex', gap: 1.25, alignItems: 'flex-start', height: '100%' }}>
+              <Box sx={{
+                bgcolor: S.card,
+                border: i < 2
+                  ? `1.5px solid ${i === 0 ? 'rgba(96,165,250,0.55)' : 'rgba(74,222,128,0.5)'}`
+                  : `1px solid ${S.bdr}`,
+                borderRadius: 1.5, p: 1.5, display: 'flex', gap: 1.25, alignItems: 'flex-start', height: '100%',
+              }}>
                 <Box sx={{ fontSize: '1.25rem', flexShrink: 0 }}>{f.icon}</Box>
                 <Box>
-                  <Typography sx={{ fontSize: '0.77rem', fontWeight: 700, mb: 0.25 }}>{f.title}</Typography>
+                  <Typography sx={{
+                    fontSize: '0.77rem', fontWeight: 700, mb: 0.25,
+                    color: i < 2 ? (i === 0 ? '#60a5fa' : '#4ade80') : S.txt,
+                  }}>{f.title}</Typography>
                   <Typography sx={{ fontSize: '0.68rem', color: S.muted, lineHeight: 1.4 }}>{f.desc}</Typography>
                 </Box>
               </Box>
@@ -504,10 +522,10 @@ function SlideMockup({ step }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 700 }}>
       <Tag color="#22d3ee" bg="rgba(8,145,178,0.15)" border="rgba(8,145,178,0.3)">The Dashboard</Tag>
       <Typography sx={{ fontSize: 'clamp(1.25rem,2.3vw,1.85rem)', fontWeight: 800, textAlign: 'center', mb: 0.75, color: S.txt }}>
-        This is the Part I'm <Box component="span" sx={{ color: '#60a5fa' }}>Most Proud Of</Box>
+        What Used to Take Manual Effort is Now <Box component="span" sx={{ color: '#60a5fa' }}>Available Instantly</Box>
       </Typography>
       <Typography sx={{ fontSize: '0.84rem', color: S.muted, textAlign: 'center', mb: 1.5 }}>
-        Everything is available in one place — no more searching through Excel.
+        Adoption trends, inactive users, assistant rankings, reports — within a few clicks.
       </Typography>
 
       <Box sx={{ bgcolor: '#0f172a', border: '1.5px solid rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', width: '100%' }}>
@@ -541,10 +559,10 @@ function SlideMockup({ step }) {
                 ))}
               </Box>
               {[
-                { name:'Alex J.',  vals:[12,9,14],  total:35, amber:false },
-                { name:'Sarah W.', vals:[0,0,0],    total:0,  amber:true  },
-                { name:'Mike C.',  vals:[8,11,7],   total:26, amber:false },
-                { name:'Priya S.', vals:[15,13,11], total:39, amber:false },
+                { name:'User A',  vals:[12,9,14],  total:35, amber:false },
+                { name:'User B',  vals:[0,0,0],    total:0,  amber:true  },
+                { name:'User C',  vals:[8,11,7],   total:26, amber:false },
+                { name:'User D',  vals:[15,13,11], total:39, amber:false },
               ].map(row => (
                 <Box key={row.name} sx={{ display:'flex', gap:0.5, py:'3px', borderBottom:'1px solid rgba(255,255,255,0.04)', bgcolor: row.amber ? 'rgba(217,119,6,0.07)' : 'transparent' }}>
                   <Box sx={{ flex:1 }}>
@@ -594,9 +612,11 @@ function SlideBuilder({ onLaunch }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       <Tag color="#c4b5fd" bg="rgba(124,58,237,0.15)" border="rgba(124,58,237,0.3)">The Builder</Tag>
       <Typography sx={{ fontSize: 'clamp(1.25rem,2.3vw,1.85rem)', fontWeight: 800, textAlign: 'center', mb: 0.5, color: S.txt }}>
-        And Finally... <Box component="span" sx={{ color: '#60a5fa' }}>The Person Responsible</Box>
+        This Wasn't About Building <Box component="span" sx={{ color: '#60a5fa' }}>Another Dashboard</Box>
       </Typography>
-      <Typography sx={{ fontSize: '0.85rem', color: S.muted, textAlign: 'center', mb: 2.5 }}>For all of this.</Typography>
+      <Typography sx={{ fontSize: '0.85rem', color: S.muted, textAlign: 'center', mb: 2.5 }}>
+        It was about solving a repetitive problem in a smarter way.
+      </Typography>
 
       <Box sx={{
         background: 'linear-gradient(135deg,rgba(37,99,235,0.2),rgba(124,58,237,0.2))',
@@ -608,7 +628,7 @@ function SlideBuilder({ onLaunch }) {
         </Box>
         <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, mb: 0.25 }}>Yaswanth Sai</Typography>
         <Typography sx={{ fontSize: '0.75rem', color: S.muted, mb: 1.75 }}>
-          AI Enthusiast · Full Stack Developer · Someone who dislikes manual work enough to spend weeks automating five minutes of daily effort
+          Full Stack Developer · ICA Weekly Report Application
         </Typography>
         <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center', flexWrap: 'wrap', mb: 1.75 }}>
           {[
@@ -624,17 +644,30 @@ function SlideBuilder({ onLaunch }) {
           ))}
         </Box>
         <Typography sx={{ fontSize: '0.82rem', color: S.muted, fontStyle: 'italic', lineHeight: 1.8 }}>
-          "This project wasn't just about sending notifications.<br/>
-          It was about converting repetitive work into intelligent automation.
-          Saving time. Providing insights.<br/>
-          And making ICA adoption <strong style={{ color: S.txt, fontStyle: 'normal' }}>measurable instead of guessable</strong>."
+          "The reminders became automated.<br/>
+          The reporting became meaningful.<br/>
+          And the data finally became useful."
+        </Typography>
+      </Box>
+
+      {/* ── Signature line — pulled out for maximum impact ── */}
+      <Box sx={{
+        width: '100%', maxWidth: 580, mb: 2.5,
+        borderLeft: '3px solid #3b82d4',
+        pl: 2, py: 0.5,
+      }}>
+        <Typography sx={{ fontSize: '0.97rem', fontWeight: 700, color: S.txt, lineHeight: 1.6 }}>
+          "We were using AI every day...
+        </Typography>
+        <Typography sx={{ fontSize: '0.97rem', fontWeight: 700, color: '#60a5fa', lineHeight: 1.6 }}>
+          but the process of tracking AI usage wasn't."
         </Typography>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <StatBox value="0"    label="Manual Steps"    color="#60a5fa" />
-        <StatBox value="100%" label="Automated"        color="#4ade80" />
-        <StatBox value="∞"    label="People Impressed" color="#fbbf24" />
+        <StatBox value="0"    label="Manual Steps"   color="#60a5fa" />
+        <StatBox value="100%" label="Automated"       color="#4ade80" />
+        <StatBox value="∞"    label="Time Saved"      color="#fbbf24" />
       </Box>
 
       <Box
@@ -655,6 +688,10 @@ function SlideBuilder({ onLaunch }) {
         <DashboardIcon sx={{ fontSize: 20 }} />
         Launch the App →
       </Box>
+
+      <Typography sx={{ fontSize: '0.8rem', color: S.muted, mt: 2, fontStyle: 'italic' }}>
+        Thank you — and I'd love to show you the application.
+      </Typography>
     </Box>
   );
 }
@@ -799,11 +836,6 @@ export default function Presentation({ onLaunch }) {
       <Box sx={{ position:'absolute', top:12, right:16, zIndex:10, bgcolor:'rgba(0,0,0,0.4)', border:`1px solid ${S.bdr}`, borderRadius:20, px:1.5, py:0.4 }}>
         <Typography sx={{ fontSize:'0.72rem', color:S.muted }}>
           {slideIdx + 1} / {TOTAL}
-          {currentDef.maxSteps > 0 && (
-            <Box component="span" sx={{ ml: 0.75, opacity: 0.6 }}>
-              · {step}/{currentDef.maxSteps}
-            </Box>
-          )}
         </Typography>
       </Box>
 
