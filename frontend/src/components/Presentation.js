@@ -399,14 +399,14 @@ function SlideTransform({ step }) {
       </Typography>
 
       {showIrony && (
-        <FadeIn sx={{ mb: 2.5, width: '100%', maxWidth: 700 }}>
+        <FadeIn sx={{ mb: 2, width: '100%', maxWidth: 700 }}>
           <Box sx={{ bgcolor: 'rgba(37,99,235,0.1)', border: '1.5px solid rgba(37,99,235,0.3)', borderRadius: 2, p: 2.25, textAlign: 'center' }}>
             <Typography sx={{ fontSize: '0.9rem', color: '#93c5fd', lineHeight: 1.8, fontStyle: 'italic' }}>
               "Then I noticed something that felt a little ironic.<br/>
               We were encouraging everyone to adopt AI every day...<br/>
               but the process of <strong style={{ color: S.txt }}>tracking AI usage</strong> was <strong style={{ color: '#f87171' }}>completely manual</strong>.<br/>
-              That didn't seem right. So instead of improving the Excel sheet...<br/>
-              I decided to <strong style={{ color: '#4ade80' }}>remove it from the process altogether</strong>."
+              That didn't seem right. So I built an application<br/>
+              to <strong style={{ color: '#4ade80' }}>turn that manual effort into something automated</strong>."
             </Typography>
           </Box>
         </FadeIn>
@@ -418,11 +418,11 @@ function SlideTransform({ step }) {
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>❌ Before</Typography>
             {[
-              ['📋', 'User fills Excel tracker'],
-              ['🔍', 'Manually review tracker'],
-              ['📝', 'Compile names by hand'],
-              ['💬', 'Post in Teams manually'],
-              ['😶', 'No data. No insights.'],
+              ['📋', 'ICA tracker filled daily'],
+              ['🔍', 'Open CSV, scan rows manually'],
+              ['📝', 'Note down who missed — by hand'],
+              ['💬', 'Type & post reminder in Teams'],
+              ['😶', 'Data forgotten. No insights.'],
             ].map(([e, t], i) => (
               <React.Fragment key={t}>
                 <FlowNode emoji={e} text={t} variant="red" />
@@ -440,11 +440,11 @@ function SlideTransform({ step }) {
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
             <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.5 }}>✅ After</Typography>
             {[
-              ['📤', 'CSV exported from ICA'],
-              ['🚀', 'Uploaded to the App'],
-              ['🤖', 'Auto-detects missing users'],
-              ['🔔', 'Teams notification fires!'],
-              ['📊', 'Full analytics dashboard'],
+              ['📤', 'ICA CSV exported from Box'],
+              ['⬆️',  'Upload to the app — one click'],
+              ['🗄️',  'Parsed & stored in database'],
+              ['🤖', 'App auto-detects missed users'],
+              ['🔔', 'Teams webhook card fires'],
             ].map(([e, t], i) => (
               <React.Fragment key={t}>
                 <FlowNode emoji={e} text={t} variant="green" />
