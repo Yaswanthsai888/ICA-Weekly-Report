@@ -333,7 +333,7 @@ function App() {
               <InsightsIcon sx={{ color: '#fff', fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.92rem', lineHeight: 1.2 }}>ICA Reports</Typography>
+              <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.92rem', lineHeight: 1.2 }}>ICA Monitoring Portal</Typography>
               <Typography sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>Usage Analytics</Typography>
             </Box>
           </Box>

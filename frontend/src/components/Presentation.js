@@ -97,7 +97,7 @@ function FlowNode({ emoji, text, variant = 'normal' }) {
 function SlideHero() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-      <Tag>ICA Usage Analytics</Tag>
+      <Tag>ICA Monitoring Portal</Tag>
       <Box sx={{ fontSize: 'clamp(3rem,5.5vw,4.5rem)', lineHeight: 1, mb: 1.5, animation: 'presFloat 3s ease-in-out infinite' }}>
         🚀
       </Box>
@@ -113,7 +113,7 @@ function SlideHero() {
       </Typography>
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 780 }}>
         <InfoCard icon="👥" label="Team Size"   value="20 Members"  />
-        <InfoCard icon="🤖" label="ICA Tools"   value="6 Assistants"/>
+        <InfoCard icon="🤖" label="ICA Tools"   value="Assistants"/>
         <InfoCard icon="📊" label="Analytics"   value="Real-time"   />
         <InfoCard icon="🔔" label="Reminders"   value="Automated"   />
       </Box>
@@ -531,7 +531,7 @@ function SlideMockup({ step }) {
       <Box sx={{ bgcolor: '#0f172a', border: '1.5px solid rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', width: '100%' }}>
         <Box sx={{ bgcolor: '#1e293b', px: 1.75, py: 1, display: 'flex', alignItems: 'center', gap: 0.75, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           {['#ef4444','#f59e0b','#22c55e'].map(c => <Box key={c} sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: c }} />)}
-          <Typography sx={{ fontSize: '0.7rem', color: '#64748b', ml: 0.75 }}>ICA Reports — Usage Analytics</Typography>
+          <Typography sx={{ fontSize: '0.7rem', color: '#64748b', ml: 0.75 }}>ICA Monitoring Portal</Typography>
         </Box>
         <Box sx={{ display: 'flex', p: 1.25, gap: 1 }}>
           <Box sx={{ width: 100, borderRight: '1px solid rgba(255,255,255,0.06)', pr: 1 }}>
@@ -628,7 +628,7 @@ function SlideBuilder({ onLaunch }) {
         </Box>
         <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, mb: 0.25 }}>Yaswanth Sai</Typography>
         <Typography sx={{ fontSize: '0.75rem', color: S.muted, mb: 1.75 }}>
-          Full Stack Developer · ICA Weekly Report Application
+          Full Stack Developer · ICA Monitoring Portal
         </Typography>
         <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center', flexWrap: 'wrap', mb: 1.75 }}>
           {[
