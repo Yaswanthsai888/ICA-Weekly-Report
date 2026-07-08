@@ -7,6 +7,9 @@ const path = require('path');
 const https = require('https');
 const { db, dbHelpers } = require('./database');
 const { parseCSV } = require('./csvParser');
+const { parseLeaveCSV, inferMonthFromFilename } = require('./leaveParser');
+const { parseHolidayCSV } = require('./holidayParser');
+const { resolveAll } = require('./nameResolver');
 const { startOfWeek, endOfWeek, format, subWeeks, addDays } = require('date-fns');
 
 const app = express();
@@ -316,17 +319,17 @@ app.get('/api/monthly-summary', async (req, res) => {
 // Get users who had NO usage on a specific date — used by ICA Agent Studio workflow
 // Query param: date=YYYY-MM-DD
 // Returns: [{ id, name, email, scrum_master, track }]
+// GET /api/missed-users?date=YYYY-MM-DD
+// Now leave-aware: skips people on leave or on a public holiday for their location
 app.get('/api/missed-users', async (req, res) => {
   try {
-    const { date } = req.query;
-    if (!date) {
-      return res.status(400).json({ error: 'date query parameter is required (YYYY-MM-DD)' });
-    }
-    // Basic validation: YYYY-MM-DD
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'date must be in YYYY-MM-DD format' });
-    }
-    const users = await dbHelpers.getMissedUsers(date);
+    const { date, leaveAware } = req.query;
+    if (!date) return res.status(400).json({ error: 'date query parameter is required (YYYY-MM-DD)' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date must be in YYYY-MM-DD format' });
+    // leaveAware=false falls back to original behaviour (for debugging)
+    const users = leaveAware === 'false'
+      ? await dbHelpers.getMissedUsers(date)
+      : await dbHelpers.getMissedUsersLeaveAware(date);
     res.json({ date, count: users.length, users });
   } catch (error) {
     console.error('Error fetching missed users:', error);
@@ -334,10 +337,360 @@ app.get('/api/missed-users', async (req, res) => {
   }
 });
 
-// Get all team members with their active/inactive status
+// ── Team Members (new full CRUD) ──────────────────────────────────────────────
+
+// GET /api/roster  — full team roster from team_members table
+app.get('/api/roster', async (req, res) => {
+  try {
+    const members = await dbHelpers.getAllTeamMembers();
+    res.json(members);
+  } catch (err) {
+    console.error('GET /api/roster error:', err);
+    res.status(500).json({ error: 'Failed to fetch roster' });
+  }
+});
+
+// GET /api/roster/:id
+app.get('/api/roster/:id', async (req, res) => {
+  try {
+    const member = await dbHelpers.getTeamMemberById(parseInt(req.params.id, 10));
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    res.json(member);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch member' });
+  }
+});
+
+// POST /api/roster  — add a new team member
+app.post('/api/roster', async (req, res) => {
+  try {
+    const { name, email, mobile, stream, role, location, backup_name, backup_email, backup_mobile, status } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const member = await dbHelpers.upsertTeamMember({ name, email, mobile, stream, role, location, backup_name, backup_email, backup_mobile, status: status || 'active' });
+    res.status(201).json(member);
+  } catch (err) {
+    console.error('POST /api/roster error:', err);
+    res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+// PUT /api/roster/:id  — update a team member
+app.put('/api/roster/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+    const existing = await dbHelpers.getTeamMemberById(id);
+    if (!existing) return res.status(404).json({ error: 'Member not found' });
+    const updated = await dbHelpers.upsertTeamMember({ ...req.body, id });
+    res.json(updated);
+  } catch (err) {
+    console.error('PUT /api/roster/:id error:', err);
+    res.status(500).json({ error: 'Failed to update member' });
+  }
+});
+
+// PATCH /api/roster/:id/status  — change status (active | on_leave | moved_away)
+app.patch('/api/roster/:id/status', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { status } = req.body;
+    const valid = ['active', 'on_leave', 'moved_away'];
+    if (!valid.includes(status)) return res.status(400).json({ error: `status must be one of: ${valid.join(', ')}` });
+    const result = await dbHelpers.setTeamMemberStatus(id, status);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.message === 'Member not found') return res.status(404).json({ error: 'Member not found' });
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// DELETE /api/roster/:id  — permanently remove a team member
+app.delete('/api/roster/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+    await dbHelpers.deleteTeamMember(id);
+    res.json({ success: true, id });
+  } catch (err) {
+    if (err.message === 'Member not found') return res.status(404).json({ error: 'Member not found' });
+    console.error('DELETE /api/roster/:id error:', err);
+    res.status(500).json({ error: 'Failed to delete member' });
+  }
+});
+
+// POST /api/upload-team-backup  — upload / re-upload the team backup CSV
+app.post('/api/upload-team-backup', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const raw   = fs.readFileSync(req.file.path, 'utf8');
+    const lines = raw.split(/\r?\n/).map(l => l.split(',').map(c => c.trim()));
+    const members = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      if (!row[0] || isNaN(parseInt(row[0], 10))) continue;
+      const name = row[3]?.trim();
+      if (!name) continue;
+      members.push({
+        name, email: row[4]?.trim()||null, mobile: row[5]?.trim()||null,
+        stream: row[1]?.trim()||null, role: row[2]?.trim()||null, location: null,
+        backup_name: row[6]?.trim()||null, backup_email: row[7]?.trim()||null,
+        backup_mobile: row[8]?.trim()||null, status: 'active',
+      });
+    }
+    const inserted = await dbHelpers.bulkInsertTeamMembers(members);
+    fs.unlinkSync(req.file.path);
+    res.json({ success: true, inserted, total: members.length });
+  } catch (err) {
+    console.error('upload-team-backup error:', err);
+    if (req.file?.path) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'Failed to process team backup CSV' });
+  }
+});
+
+// ── Leave Records ─────────────────────────────────────────────────────────────
+
+// GET /api/leave?monthYear=2026-06&memberName=John
+app.get('/api/leave', async (req, res) => {
+  try {
+    const { monthYear, memberName, startDate, endDate } = req.query;
+    const records = await dbHelpers.getLeaveRecords({ monthYear, memberName, startDate, endDate });
+    res.json(records);
+  } catch (err) {
+    console.error('GET /api/leave error:', err);
+    res.status(500).json({ error: 'Failed to fetch leave records' });
+  }
+});
+
+// GET /api/leave/today  — who is on leave today
+app.get('/api/leave/today', async (req, res) => {
+  try {
+    const today = req.query.date || new Date().toISOString().slice(0, 10);
+    const onLeave = await dbHelpers.getMembersOnLeave(today);
+    // Enrich with team_member details (backup info)
+    const roster = await dbHelpers.getAllTeamMembers();
+    const rosterByName = {};
+    roster.forEach(m => { rosterByName[m.name.toLowerCase()] = m; });
+    const enriched = onLeave.map(l => ({
+      ...l,
+      member: rosterByName[l.member_name.toLowerCase()] || null,
+    }));
+    res.json({ date: today, count: enriched.length, members: enriched });
+  } catch (err) {
+    console.error('GET /api/leave/today error:', err);
+    res.status(500).json({ error: 'Failed to fetch today\'s leave' });
+  }
+});
+
+// POST /api/upload-leave  — upload a monthly leave CSV
+// Body params: year, month, snapshot ('start' | 'end')
+// If snapshot is not supplied, the server auto-detects:
+//   - 'start'  if no leave data exists for that month yet  (first-ever upload)
+//   - 'end'    if a 'start' snapshot already exists        (month-close correction)
+// Uploading a snapshot replaces only the records for that month+snapshot pair,
+// so start and end can coexist independently.
+app.post('/api/upload-leave', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const filename = req.file.originalname || req.file.filename;
+    let year  = req.body.year  ? parseInt(req.body.year, 10)  : null;
+    let month = req.body.month ? parseInt(req.body.month, 10) : null;
+
+    if (!year || !month) {
+      const inferred = inferMonthFromFilename(filename);
+      if (inferred) { year = inferred.year; month = inferred.month; }
+    }
+    if (!year || !month) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Could not determine year/month from filename. Pass year and month in the request body.' });
+    }
+
+    const monthYear = `${year}-${String(month).padStart(2, '0')}`;
+
+    // Auto-detect snapshot type when not explicitly supplied
+    let snapshot = req.body.snapshot;
+    if (snapshot !== 'start' && snapshot !== 'end') {
+      const existing = await dbHelpers.getLeaveSnapshots();
+      const hasStart = existing.some(s => s.month_year === monthYear && s.snapshot === 'start');
+      snapshot = hasStart ? 'end' : 'start';
+    }
+
+    const { members, records } = parseLeaveCSV(req.file.path, year, month);
+
+    // ── Resolve CSV names to canonical roster names ───────────────────────────
+    // Uses email (if present in entry) first, then multi-step name fuzzy match.
+    // See backend/nameResolver.js for the full priority chain.
+    const rosterMembers = await dbHelpers.getAllTeamMembers();
+    const memberChanges = resolveAll(members, 'name',        'email', rosterMembers);
+    const recordChanges = resolveAll(records, 'member_name', null,    rosterMembers);
+    const allChanges = [...memberChanges, ...recordChanges];
+    if (allChanges.length) {
+      console.log('[upload-leave] Name resolutions:', allChanges.map(c => `"${c.original}" → "${c.resolved}" (${c.method})`).join(', '));
+    }
+
+    // Tag each record with the snapshot label
+    records.forEach(r => { r.snapshot = snapshot; });
+
+    // Patch team_member locations
+    for (const m of members) {
+      if (m.location) await dbHelpers.updateTeamMemberLocation(m.name, m.location);
+    }
+
+    // Delete existing records for this month+snapshot then insert fresh
+    await dbHelpers.deleteLeaveRecordsByMonthSnapshot(monthYear, snapshot);
+    const inserted = await dbHelpers.bulkInsertLeaveRecords(records);
+
+    // Record snapshot metadata
+    await dbHelpers.upsertLeaveSnapshot(monthYear, snapshot, members.length, records.length);
+
+    fs.unlinkSync(req.file.path);
+    res.json({
+      success: true, monthYear, snapshot, inserted,
+      total: records.length, members: members.length,
+      namesResolved: allChanges.length,
+      resolutions: allChanges,
+    });
+  } catch (err) {
+    console.error('upload-leave error:', err);
+    if (req.file?.path) try { fs.unlinkSync(req.file.path); } catch {}
+    res.status(500).json({ error: 'Failed to process leave CSV', details: err.message });
+  }
+});
+
+// POST /api/repair-leave-names
+// Scans all leave_records, resolves member_name values to canonical roster names using the same
+// email+fuzzy logic as the upload flow, and writes the corrections back to the DB.
+// Safe to run multiple times — only updates rows where the name actually changes.
+app.post('/api/repair-leave-names', async (req, res) => {
+  try {
+    const roster = await dbHelpers.getAllTeamMembers();
+
+    // Load all distinct member_name values from leave_records
+    const rows = await new Promise((resolve, reject) => {
+      db.all('SELECT DISTINCT member_name FROM leave_records', [], (err, r) => {
+        if (err) reject(err); else resolve(r);
+      });
+    });
+
+    const repairs = [];
+    for (const row of rows) {
+      // resolveAll works on arrays; wrap & unwrap
+      const entry = { member_name: row.member_name };
+      const changes = resolveAll([entry], 'member_name', null, roster);
+      if (changes.length) {
+        repairs.push({ from: row.member_name, to: entry.member_name, method: changes[0].method });
+      }
+    }
+
+    // Apply each rename atomically
+    for (const r of repairs) {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE leave_records SET member_name = ? WHERE member_name = ?',
+          [r.to, r.from],
+          function(err) { if (err) reject(err); else resolve(this.changes); }
+        );
+      });
+      console.log(`[repair-leave-names] "${r.from}" → "${r.to}" (${r.method})`);
+    }
+
+    res.json({ success: true, repaired: repairs.length, repairs });
+  } catch (err) {
+    console.error('repair-leave-names error:', err);
+    res.status(500).json({ error: 'Repair failed', details: err.message });
+  }
+});
+
+// GET /api/leave/snapshots  — list months that have uploaded leave data and their snapshot status
+app.get('/api/leave/snapshots', async (req, res) => {
+  try {
+    const snapshots = await dbHelpers.getLeaveSnapshots();
+    res.json(snapshots);
+  } catch (err) {
+    console.error('GET /api/leave/snapshots error:', err);
+    res.status(500).json({ error: 'Failed to fetch leave snapshots' });
+  }
+});
+
+// GET /api/working-hours?monthYear=2026-06
+// Returns both 'start' and 'end' snapshot data with per-member holiday deduction.
+// hoursPerDay is read from app_settings (key: wh_hoursPerDay_<monthYear>), default 9.
+app.get('/api/working-hours', async (req, res) => {
+  try {
+    const { monthYear } = req.query;
+    if (!monthYear || !/^\d{4}-\d{2}$/.test(monthYear)) {
+      return res.status(400).json({ error: 'monthYear query param required in YYYY-MM format' });
+    }
+    // Load custom hoursPerDay for this month (falls back to 9)
+    const storedHpd = await dbHelpers.getSetting(`wh_hoursPerDay_${monthYear}`);
+    const hoursPerDay = storedHpd ? parseFloat(storedHpd) : 9;
+
+    const [startData, endData] = await Promise.all([
+      dbHelpers.getWorkingHours(monthYear, 'start', hoursPerDay),
+      dbHelpers.getWorkingHours(monthYear, 'end',   hoursPerDay),
+    ]);
+    const hasStartData = startData.members.some(m => m.leave_days > 0);
+    const hasEndData   = endData.members.some(m => m.leave_days > 0);
+    res.json({ monthYear, hoursPerDay, start: startData, end: endData, hasStartData, hasEndData });
+  } catch (err) {
+    console.error('GET /api/working-hours error:', err);
+    res.status(500).json({ error: 'Failed to compute working hours', details: err.message });
+  }
+});
+
+// PUT /api/working-hours/settings  — save hoursPerDay override for a month
+// Body: { monthYear: '2026-07', hoursPerDay: 8 }
+app.put('/api/working-hours/settings', async (req, res) => {
+  try {
+    const { monthYear, hoursPerDay } = req.body;
+    if (!monthYear || !/^\d{4}-\d{2}$/.test(monthYear)) {
+      return res.status(400).json({ error: 'monthYear required in YYYY-MM format' });
+    }
+    const hpd = parseFloat(hoursPerDay);
+    if (isNaN(hpd) || hpd <= 0 || hpd > 24) {
+      return res.status(400).json({ error: 'hoursPerDay must be a number between 1 and 24' });
+    }
+    await dbHelpers.setSetting(`wh_hoursPerDay_${monthYear}`, String(hpd));
+    res.json({ success: true, monthYear, hoursPerDay: hpd });
+  } catch (err) {
+    console.error('PUT /api/working-hours/settings error:', err);
+    res.status(500).json({ error: 'Failed to save setting' });
+  }
+});
+
+// ── Holidays ──────────────────────────────────────────────────────────────────
+
+// GET /api/holidays?location=Bangalore&startDate=2026-01-01&endDate=2026-12-31
+app.get('/api/holidays', async (req, res) => {
+  try {
+    const { location, startDate, endDate } = req.query;
+    const holidays = await dbHelpers.getHolidays({ location, startDate, endDate });
+    res.json(holidays);
+  } catch (err) {
+    console.error('GET /api/holidays error:', err);
+    res.status(500).json({ error: 'Failed to fetch holidays' });
+  }
+});
+
+// POST /api/upload-holidays  — upload / replace the holiday list CSV
+app.post('/api/upload-holidays', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const holidays = parseHolidayCSV(req.file.path);
+    await dbHelpers.clearHolidays();
+    const inserted = await dbHelpers.bulkInsertHolidays(holidays);
+    fs.unlinkSync(req.file.path);
+    res.json({ success: true, inserted, total: holidays.length });
+  } catch (err) {
+    console.error('upload-holidays error:', err);
+    if (req.file?.path) try { fs.unlinkSync(req.file.path); } catch {}
+    res.status(500).json({ error: 'Failed to process holidays CSV', details: err.message });
+  }
+});
+
+// ── Legacy team-members route (kept for backward compat with TeamManager component) ──
 app.get('/api/team-members', async (req, res) => {
   try {
-    const members = await dbHelpers.getTeamMembers();
+    const members = await dbHelpers.getAllTeamMembers();
     res.json(members);
   } catch (error) {
     console.error('Error fetching team members:', error);
@@ -680,6 +1033,61 @@ app.delete('/api/clear-data', async (req, res) => {
   } catch (error) {
     console.error('Error clearing data:', error);
     res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
+
+// GET /api/coverage?date=YYYY-MM-DD  — who is out and is their backup also out?
+app.get('/api/coverage', async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const [onLeave, roster, holidays] = await Promise.all([
+      dbHelpers.getMembersOnLeave(date),
+      dbHelpers.getAllTeamMembers(),
+      dbHelpers.getHolidays({ startDate: date, endDate: date }),
+    ]);
+
+    const onLeaveNames = new Set(onLeave.map(l => l.member_name.toLowerCase()));
+
+    // Also add people on holiday for their location
+    const rosterMap = {};
+    roster.forEach(m => { rosterMap[m.name.toLowerCase()] = m; });
+
+    holidays.forEach(h => {
+      const holidayLocs = new Set(h.locations.map(l => l.toLowerCase()));
+      roster.forEach(m => {
+        const loc = (m.location || '').toLowerCase();
+        if (h.is_national || (loc && holidayLocs.has(loc))) {
+          onLeaveNames.add(m.name.toLowerCase());
+        }
+      });
+    });
+
+    // Build coverage map
+    const coverage = roster
+      .filter(m => m.status === 'active')
+      .map(m => {
+        const isOut      = onLeaveNames.has(m.name.toLowerCase());
+        const backupOut  = m.backup_name ? onLeaveNames.has(m.backup_name.toLowerCase()) : null;
+        return {
+          id:            m.id,
+          name:          m.name,
+          stream:        m.stream,
+          role:          m.role,
+          location:      m.location,
+          status:        isOut ? 'absent' : 'present',
+          backup_name:   m.backup_name || null,
+          backup_email:  m.backup_email || null,
+          backup_mobile: m.backup_mobile || null,
+          backup_status: backupOut === null ? null : (backupOut ? 'absent' : 'present'),
+          coverage_gap:  isOut && backupOut === true,
+        };
+      });
+
+    const gaps = coverage.filter(c => c.coverage_gap);
+    res.json({ date, coverage, coverage_gaps: gaps, absent_count: [...onLeaveNames].length });
+  } catch (err) {
+    console.error('GET /api/coverage error:', err);
+    res.status(500).json({ error: 'Failed to compute coverage' });
   }
 });
 
