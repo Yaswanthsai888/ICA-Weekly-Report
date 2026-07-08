@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box, Typography, Button, TextField, MenuItem, Select, FormControl,
   InputLabel, Table, TableHead, TableBody, TableRow, TableCell,
   TableContainer, Paper, CircularProgress, Dialog, DialogTitle,
   DialogContent, DialogActions, Chip, Tooltip, IconButton, Alert,
-  Snackbar, Avatar, Divider, InputAdornment, Tab, Tabs,
+  Snackbar, Avatar, Divider, InputAdornment, Tab, Tabs, LinearProgress,
 } from '@mui/material';
 import AddIcon              from '@mui/icons-material/Add';
 import EditIcon             from '@mui/icons-material/Edit';
@@ -16,6 +16,8 @@ import SearchIcon           from '@mui/icons-material/Search';
 import LocationOnIcon       from '@mui/icons-material/LocationOn';
 import ManageAccountsIcon   from '@mui/icons-material/ManageAccounts';
 import AccessTimeIcon       from '@mui/icons-material/AccessTime';
+import UploadFileIcon       from '@mui/icons-material/UploadFile';
+import InsertDriveFileIcon  from '@mui/icons-material/InsertDriveFile';
 import axios from 'axios';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -276,6 +278,122 @@ function ConfirmDialog({ open, title, message, severity, confirmLabel, onConfirm
 }
 
 // ── Working Hours Tab ─────────────────────────────────────────────────────────
+
+// ── Upload Team CSV Dialog ────────────────────────────────────────────────────
+function UploadTeamDialog({ open, onClose, onSuccess }) {
+  const [file,      setFile]      = useState(null);
+  const [dragging,  setDragging]  = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [result,    setResult]    = useState(null);
+  const inputRef = useRef();
+
+  // Reset state every time dialog opens
+  useEffect(() => {
+    if (open) { setFile(null); setResult(null); setDragging(false); }
+  }, [open]);
+
+  const acceptFile = (f) => {
+    if (f?.name.endsWith('.csv')) { setFile(f); setResult(null); }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragging(false);
+    acceptFile(e.dataTransfer.files[0]);
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true); setResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await axios.post('/api/upload-team-backup', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const { inserted, total } = res.data;
+      setResult({ ok: true, message: `✓ ${inserted} member${inserted !== 1 ? 's' : ''} imported (${total} rows processed)` });
+      setFile(null);
+      onSuccess();
+    } catch (err) {
+      setResult({ ok: false, message: err.response?.data?.error || 'Upload failed' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={!uploading ? onClose : undefined} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: '1rem', pb: 1 }}>
+        Upload Team CSV
+      </DialogTitle>
+      <DialogContent>
+        <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
+          Expected columns (in order): <strong>Sno, Stream, Role, Name, Email, Mobile, Backup Name, Backup Email, Backup Mobile</strong>.
+          Rows with duplicate names are skipped; existing members are not overwritten.
+        </Alert>
+
+        {/* Drop zone */}
+        <Box
+          onDrop={handleDrop}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onClick={() => !file && inputRef.current.click()}
+          sx={{
+            border: '1.5px dashed',
+            borderColor: dragging ? '#2563eb' : file ? '#16a34a' : 'divider',
+            borderRadius: 2, p: 3, textAlign: 'center', cursor: 'pointer',
+            bgcolor: dragging ? 'rgba(37,99,235,0.04)' : file ? 'rgba(22,163,74,0.04)' : 'background.paper',
+            transition: 'all 0.15s',
+            '&:hover': { borderColor: '#2563eb', bgcolor: 'rgba(37,99,235,0.04)' },
+          }}
+        >
+          <input ref={inputRef} type="file" accept=".csv" style={{ display: 'none' }}
+            onChange={(e) => acceptFile(e.target.files[0])} />
+          {file ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <InsertDriveFileIcon sx={{ fontSize: 18, color: '#16a34a' }} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{file.name}</Typography>
+              <Box component="span"
+                onClick={(e) => { e.stopPropagation(); setFile(null); setResult(null); }}
+                sx={{ ml: 1, fontSize: '0.75rem', color: 'text.disabled', cursor: 'pointer', '&:hover': { color: 'error.main' } }}>
+                ✕
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              <UploadFileIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 0.5 }} />
+              <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
+                Drop a CSV file here, or <Box component="span" sx={{ color: '#2563eb', fontWeight: 600 }}>browse</Box>
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: 'text.disabled', mt: 0.5 }}>Only .csv files are accepted</Typography>
+            </Box>
+          )}
+        </Box>
+
+        {uploading && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+
+        {result && (
+          <Alert severity={result.ok ? 'success' : 'error'} sx={{ mt: 2, fontSize: '0.82rem' }}>
+            {result.message}
+          </Alert>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} disabled={uploading} sx={{ color: 'text.secondary' }}>
+          {result?.ok ? 'Close' : 'Cancel'}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleUpload}
+          disabled={!file || uploading}
+          startIcon={<UploadFileIcon />}
+        >
+          {uploading ? 'Importing…' : 'Import Team'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 function WorkingHoursTab() {
   const [monthYear,   setMonthYear]   = useState(currentMonthYear());
@@ -685,15 +803,16 @@ function WorkingHoursTab() {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ManagerTab() {
-  const [tab,         setTab]         = useState(0);
-  const [members,     setMembers]     = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [search,      setSearch]      = useState('');
-  const [filterStream,setFilterStream]= useState('all');
-  const [filterStatus,setFilterStatus]= useState('all');
+  const [tab,          setTab]          = useState(0);
+  const [members,      setMembers]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState('');
+  const [filterStream, setFilterStream] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  const [editOpen,    setEditOpen]    = useState(false);
-  const [editMember,  setEditMember]  = useState(null);
+  const [editOpen,     setEditOpen]     = useState(false);
+  const [editMember,   setEditMember]   = useState(null);
+  const [uploadOpen,   setUploadOpen]   = useState(false);
 
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', severity: 'warning', confirmLabel: '', onConfirm: null });
 
@@ -817,13 +936,23 @@ export default function ManagerTab() {
                 Single place to add, edit, change status, or remove team members. All views across the app reflect changes made here.
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => { setEditMember(null); setEditOpen(true); }}
-            >
-              Add Member
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon />}
+                onClick={() => setUploadOpen(true)}
+                sx={{ borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37,99,235,0.05)' } }}
+              >
+                Upload Team CSV
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => { setEditMember(null); setEditOpen(true); }}
+              >
+                Add Member
+              </Button>
+            </Box>
           </Box>
 
           {/* Summary tiles */}
@@ -1027,6 +1156,13 @@ export default function ManagerTab() {
 
       {/* ── Tab 1: Working Hours ── */}
       {tab === 1 && <WorkingHoursTab />}
+
+      {/* Upload Team CSV Dialog */}
+      <UploadTeamDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSuccess={() => { load(); showSnack('Team CSV imported successfully.'); }}
+      />
 
       {/* Add/Edit Dialog */}
       <MemberDialog
