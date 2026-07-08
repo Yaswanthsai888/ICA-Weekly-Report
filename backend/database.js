@@ -578,11 +578,12 @@ const dbHelpers = {
 
   deleteLeaveRecordsByMonthSnapshot: (monthYear, snapshot) => {
     return new Promise((resolve, reject) => {
-      db.run(
-        `DELETE FROM leave_records WHERE month_year = ? AND snapshot = ?`,
-        [monthYear, snapshot],
-        function(err) { if (err) reject(err); else resolve(this.changes); }
-      );
+      // NULL must be compared with IS NULL, not = NULL
+      const sql = snapshot === null
+        ? `DELETE FROM leave_records WHERE month_year = ? AND snapshot IS NULL`
+        : `DELETE FROM leave_records WHERE month_year = ? AND snapshot = ?`;
+      const params = snapshot === null ? [monthYear] : [monthYear, snapshot];
+      db.run(sql, params, function(err) { if (err) reject(err); else resolve(this.changes); });
     });
   },
 

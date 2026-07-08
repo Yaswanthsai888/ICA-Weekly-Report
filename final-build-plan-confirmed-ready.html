@@ -1,0 +1,205 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Final Build Plan</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.65;background:#fff;color:#1f2328;max-width:760px;margin:0 auto;padding:32px 24px 48px}
+  h1{font-size:1.4rem;font-weight:700;margin-bottom:4px}
+  h2{font-size:1rem;font-weight:700;margin:26px 0 10px;color:#1f2328;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
+  h3{font-size:0.88rem;font-weight:700;margin:12px 0 5px;color:#2563eb}
+  p{margin-bottom:9px;font-size:0.87rem}
+  .subtitle{color:#57606a;font-size:0.84rem;margin-bottom:22px}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:0.81rem}
+  th{background:#f7f8fa;text-align:left;padding:7px 11px;font-weight:600;border-bottom:2px solid #e5e7eb;color:#57606a;font-size:0.71rem;letter-spacing:.05em;text-transform:uppercase}
+  td{padding:7px 11px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:2px 7px}
+  .t-backend{background:#dbeafe;color:#1e40af}
+  .t-frontend{background:#f3e8ff;color:#6b21a8}
+  .t-both{background:#fef9c3;color:#854d0e}
+  .t-later{background:#f1f5f9;color:#475569}
+  .b-sm{background:#dcfce7;color:#166534;display:inline-block;font-size:.67rem;font-weight:700;border-radius:4px;padding:2px 8px}
+  .b-md{background:#fef9c3;color:#854d0e;display:inline-block;font-size:.67rem;font-weight:700;border-radius:4px;padding:2px 8px}
+  .b-lg{background:#fee2e2;color:#991b1b;display:inline-block;font-size:.67rem;font-weight:700;border-radius:4px;padding:2px 8px}
+  .card{border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#f7f8fa;margin-bottom:10px}
+  .card h3{margin-top:0;font-size:0.88rem}
+  .card ul{padding-left:15px}
+  .card li{font-size:.82rem;color:#57606a;margin-bottom:3px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .note{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:.81rem;color:#78350f;margin-bottom:12px}
+  .good{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:.81rem;color:#14532d;margin-bottom:12px}
+  .decision{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;font-size:.81rem;color:#1e3a5f;margin-bottom:12px}
+  .phase-num{font-weight:800;color:#2563eb;font-size:0.82rem;white-space:nowrap}
+  .removed{text-decoration:line-through;color:#94a3b8}
+  footer{margin-top:36px;padding-top:14px;border-top:1px solid #e5e7eb;text-align:center;color:#57606a;font-size:12px}
+</style>
+</head>
+<body>
+
+<h1>Final Build Plan — Confirmed &amp; Ready</h1>
+<p class="subtitle">Everything confirmed, all decisions locked. Starting from Phase 1 next.</p>
+
+
+<h2>Key Decisions — Locked In</h2>
+
+<div class="decision">
+  <strong>Name changes in leave files = person replacement, not aliases.</strong><br />
+  "Vaishnavi Kanade (Yashwanth Sai)" means Yashwanth Sai replaced Vaishnavi. The current active name in the Team Details is the canonical key. When uploading a leave CSV, the app matches on the current active name. Old names are treated as archived/moved-away entries.
+</div>
+
+<div class="good">
+  <strong>ICA Notifications are leave-aware.</strong> When the Reminders tab generates a "missed ICA usage" notification, it will skip anyone who is marked on leave that day — cross-checking leave records automatically.
+</div>
+
+<div class="note">
+  <strong>Team Manager page removed from ICA tab.</strong> Team management moves entirely to the new "Team Details" section. The ICA tab's "Team Manager" sub-tab is removed; that functionality is replaced by the richer Team Details tab.
+</div>
+
+
+<h2>Final App Structure</h2>
+
+<table>
+  <thead><tr><th>Left Sidebar</th><th>Header Tabs (sub-tabs)</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td rowspan="7"><strong>ICA Monitoring</strong></td>
+      <td>Dashboard</td><td>Existing ✓</td>
+    </tr>
+    <tr><td>Usage Explorer</td><td>Existing ✓</td></tr>
+    <tr><td>User Reports</td><td>Existing ✓</td></tr>
+    <tr><td>Assistant Reports</td><td>Existing ✓</td></tr>
+    <tr><td>Send Reminders <em>(leave-aware)</em></td><td>Modified ✦</td></tr>
+    <tr><td>Architecture</td><td>Existing ✓</td></tr>
+    <tr><td>Presentation</td><td>Existing ✓</td></tr>
+    <tr>
+      <td rowspan="3"><strong>Leave Monitoring</strong></td>
+      <td>Monthly Calendar</td><td>New ★</td>
+    </tr>
+    <tr><td>Who's Out Today</td><td>New ★</td></tr>
+    <tr><td>Public Holidays</td><td>New ★</td></tr>
+    <tr>
+      <td rowspan="3"><strong>Team Details</strong></td>
+      <td>Team Roster</td><td>New ★</td>
+    </tr>
+    <tr><td>Backup Map</td><td>New ★</td></tr>
+    <tr><td>Manage Members <em>(password later)</em></td><td>New ★</td></tr>
+    <tr>
+      <td rowspan="2"><strong>Overall Team</strong></td>
+      <td>Today's Overview</td><td>New ★</td>
+    </tr>
+    <tr><td>Stream Summary</td><td>New ★</td></tr>
+  </tbody>
+</table>
+
+
+<h2>New Database Tables (Backend)</h2>
+<div class="two-col">
+  <div class="card">
+    <h3>team_members</h3>
+    <ul>
+      <li>id, name, email, mobile</li>
+      <li>stream (DTW/MTC/RTR/STP/T&amp;S)</li>
+      <li>role (Functional/Development/…)</li>
+      <li>location (Bangalore/Pune/…)</li>
+      <li>backup_id → FK to another team_member</li>
+      <li>status (active / on_leave / moved_away)</li>
+      <li>created_at, updated_at</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>leave_records</h3>
+    <ul>
+      <li>id, member_id → FK team_members</li>
+      <li>leave_date (DATE)</li>
+      <li>leave_type (vacation / sick / holiday)</li>
+      <li>month_year (e.g. "2026-06")</li>
+      <li>source (uploaded / manual)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>holidays</h3>
+    <ul>
+      <li>id, holiday_date (DATE)</li>
+      <li>name (e.g. "Republic Day")</li>
+      <li>locations (JSON array of cities)</li>
+      <li>is_national (boolean)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Existing tables (untouched)</h3>
+    <ul>
+      <li>usage_records — ICA daily usage</li>
+      <li>users — ICA user list</li>
+      <li>settings — app config</li>
+    </ul>
+  </div>
+</div>
+
+
+<h2>The Key Integration — Leave ↔ ICA Reminders</h2>
+<p style="font-size:0.83rem;color:#57606a">When "Send Reminders" runs, the current flow is: find users with no ICA usage on working days → send Teams notification. The new flow adds one check:</p>
+<table>
+  <thead><tr><th>Step</th><th>Old logic</th><th>New logic</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Get all active users</td><td>Get all active team members</td></tr>
+    <tr><td>2</td><td>Find who missed ICA usage</td><td>Find who missed ICA usage</td></tr>
+    <tr><td>3</td><td><em>(no check)</em></td><td><strong>Cross-check leave_records — remove anyone on leave that day</strong></td></tr>
+    <tr><td>4</td><td><em>(no check)</em></td><td><strong>Cross-check holidays — remove anyone whose location has a holiday that day</strong></td></tr>
+    <tr><td>5</td><td>Send notification to remaining list</td><td>Send notification to remaining list (cleaner, no false alerts)</td></tr>
+  </tbody>
+</table>
+
+
+<h2>Build Phases — Step by Step</h2>
+<table>
+  <thead><tr><th style="width:80px">Phase</th><th>What gets built</th><th style="width:60px">Tag</th><th style="width:60px">Size</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="phase-num">Phase 1</td>
+      <td><strong>Backend foundation</strong> — 3 new DB tables, seed from existing CSVs, API routes for team/leave/holiday CRUD, CSV parsers for leave format &amp; holiday format</td>
+      <td><span class="tag t-backend">Backend</span></td>
+      <td><span class="b-md">Medium</span></td>
+    </tr>
+    <tr>
+      <td class="phase-num">Phase 2</td>
+      <td><strong>Team Details tab</strong> — Roster table, stream/role filters, add/edit/mark moved-away, backup chain view</td>
+      <td><span class="tag t-frontend">Frontend</span></td>
+      <td><span class="b-md">Medium</span></td>
+    </tr>
+    <tr>
+      <td class="phase-num">Phase 3</td>
+      <td><strong>Leave Monitoring tab</strong> — Monthly calendar grid, who's out today, holiday overlay per location, coverage gap alerts</td>
+      <td><span class="tag t-both">Full Stack</span></td>
+      <td><span class="b-lg">Large</span></td>
+    </tr>
+    <tr>
+      <td class="phase-num">Phase 4</td>
+      <td><strong>ICA Reminders — leave-aware</strong> — Skip people on leave or on a public holiday when generating missed-usage alerts. Remove Team Manager tab from ICA section.</td>
+      <td><span class="tag t-both">Full Stack</span></td>
+      <td><span class="b-sm">Small</span></td>
+    </tr>
+    <tr>
+      <td class="phase-num">Phase 5</td>
+      <td><strong>Overall Team tab</strong> — Summary cards, stream breakdown, ICA + leave combined per-person row, coverage map</td>
+      <td><span class="tag t-frontend">Frontend</span></td>
+      <td><span class="b-md">Medium</span></td>
+    </tr>
+    <tr>
+      <td class="phase-num">Phase 6 (later)</td>
+      <td><strong>Manager password protection</strong> — Gate add/edit/delete actions behind a PIN/password</td>
+      <td><span class="tag t-later">Later</span></td>
+      <td><span class="b-sm">Small</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="good">
+  <strong>Ready to start Phase 1.</strong> We'll build the backend first — database schema, seed the team backup CSV data, parsers for the leave/holiday formats, and all API endpoints. Once that's solid, the UI builds on top cleanly.
+</div>
+
+<footer>Made with IBM Bob</footer>
+</body>
+</html>

@@ -506,12 +506,16 @@ app.post('/api/upload-leave', upload.single('file'), async (req, res) => {
 
     const monthYear = `${year}-${String(month).padStart(2, '0')}`;
 
-    // Auto-detect snapshot type when not explicitly supplied
+    // ── Auto-detect snapshot type when not explicitly supplied ────────────────
+    // Check both the leave_snapshots table AND leave_records (null = legacy start).
     let snapshot = req.body.snapshot;
     if (snapshot !== 'start' && snapshot !== 'end') {
-      const existing = await dbHelpers.getLeaveSnapshots();
-      const hasStart = existing.some(s => s.month_year === monthYear && s.snapshot === 'start');
-      snapshot = hasStart ? 'end' : 'start';
+      const snapshotRows = await dbHelpers.getLeaveSnapshots();
+      // A real or legacy 'start' exists if leave_snapshots has a start entry OR
+      // leave_records has any null-snapshot rows for this month (uploaded before snapshot system).
+      const hasRealStart   = snapshotRows.some(s => s.month_year === monthYear && s.snapshot === 'start' && !s.is_legacy);
+      const hasLegacyStart = snapshotRows.some(s => s.month_year === monthYear && s.snapshot === 'start' &&  s.is_legacy);
+      snapshot = (hasRealStart || hasLegacyStart) ? 'end' : 'start';
     }
 
     const { members, records } = parseLeaveCSV(req.file.path, year, month);
@@ -535,8 +539,14 @@ app.post('/api/upload-leave', upload.single('file'), async (req, res) => {
       if (m.location) await dbHelpers.updateTeamMemberLocation(m.name, m.location);
     }
 
-    // Delete existing records for this month+snapshot then insert fresh
+    // ── Delete existing records for this month+snapshot then insert fresh ─────
+    // For 'start': also wipe legacy null-snapshot rows so they don't double-count
+    // with the new 'start'-tagged rows in getWorkingHours queries.
     await dbHelpers.deleteLeaveRecordsByMonthSnapshot(monthYear, snapshot);
+    if (snapshot === 'start') {
+      // Migrate / wipe any legacy null-snapshot rows for this month
+      await dbHelpers.deleteLeaveRecordsByMonthSnapshot(monthYear, null);
+    }
     const inserted = await dbHelpers.bulkInsertLeaveRecords(records);
 
     // Record snapshot metadata

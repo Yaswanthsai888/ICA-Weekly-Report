@@ -1,0 +1,352 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phase 3 Handoff — Leave Monitoring</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.65;background:#fff;color:#1f2328;max-width:800px;margin:0 auto;padding:32px 24px 48px}
+  h1{font-size:1.4rem;font-weight:700;margin-bottom:4px}
+  h2{font-size:1rem;font-weight:700;margin:26px 0 8px;color:#1f2328;border-bottom:1px solid #e5e7eb;padding-bottom:5px}
+  h3{font-size:0.88rem;font-weight:700;margin:12px 0 5px;color:#2563eb}
+  p{margin-bottom:8px;font-size:0.87rem}
+  .subtitle{color:#57606a;font-size:0.84rem;margin-bottom:20px}
+  pre{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;font-size:0.78rem;overflow-x:auto;margin-bottom:10px;line-height:1.5}
+  code{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:3px;padding:1px 5px;font-size:0.8rem;font-family:"Consolas","Courier New",monospace}
+  table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:0.82rem}
+  th{background:#f7f8fa;text-align:left;padding:6px 10px;font-weight:600;border-bottom:2px solid #e5e7eb;color:#57606a;font-size:0.71rem;letter-spacing:.05em;text-transform:uppercase}
+  td{padding:6px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .card{border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;background:#f7f8fa;margin-bottom:10px}
+  .card h3{margin-top:0}
+  .card ul,.card ol{padding-left:15px}
+  .card li{font-size:0.82rem;color:#57606a;margin-bottom:3px}
+  .good{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:9px 13px;font-size:0.82rem;color:#14532d;margin-bottom:10px}
+  .note{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:9px 13px;font-size:0.82rem;color:#78350f;margin-bottom:10px}
+  .info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 13px;font-size:0.82rem;color:#1e3a5f;margin-bottom:10px}
+  .tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:2px 7px}
+  .t-done{background:#dcfce7;color:#166534}
+  .t-next{background:#dbeafe;color:#1e40af}
+  .t-later{background:#f1f5f9;color:#475569}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  footer{margin-top:36px;padding-top:14px;border-top:1px solid #e5e7eb;text-align:center;color:#57606a;font-size:12px}
+</style>
+</head>
+<body>
+
+<h1>Phase 3 Handoff — Leave Monitoring</h1>
+<p class="subtitle">Everything the next chat needs to know to build the Leave Monitoring section from scratch — no prior context required.</p>
+
+
+<h2>Project: Internal Team Monitoring System</h2>
+<p>A React + Node/Express + SQLite single-page application for the HNK IBM team. It replaces what was originally just an "ICA Monitoring Portal" with a full team management platform.</p>
+
+<div class="two-col">
+  <div class="card">
+    <h3>Tech Stack</h3>
+    <ul>
+      <li>Frontend: React + MUI (Material UI v5)</li>
+      <li>Backend: Node.js + Express</li>
+      <li>Database: SQLite (via sqlite3 npm package)</li>
+      <li>HTTP client: axios</li>
+      <li>Workspace root: <code>C:\Users\yaswanthsai\Desktop\ICA_Weekly_report_Application</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>App Layout</h3>
+    <ul>
+      <li><strong>Left sidebar</strong> = 4 main sections</li>
+      <li><strong>Top header bar</strong> = horizontal sub-tabs for active section</li>
+      <li>Sections: ICA Monitoring, Leave Monitoring, Team Details, Overall Team</li>
+    </ul>
+  </div>
+</div>
+
+
+<h2>What Is Already Built <span class="tag t-done">Done</span></h2>
+
+<h3>Phase 1 — Backend (fully complete)</h3>
+<table>
+  <thead><tr><th>File</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>backend/database.js</code></td><td>3 new tables: <code>team_members</code>, <code>leave_records</code>, <code>holidays</code> + all DB helper functions</td></tr>
+    <tr><td><code>backend/leaveParser.js</code></td><td>Parses monthly leave grid CSV — Name, Location cols then day columns with X=vacation, S=sick</td></tr>
+    <tr><td><code>backend/holidayParser.js</code></td><td>Parses IBM India holiday list CSV — maps state columns to city names</td></tr>
+    <tr><td><code>backend/seedData.js</code></td><td>One-time seed — already run. Seeded 26 team members, 23 holidays, 44 leave records</td></tr>
+    <tr><td><code>backend/server.js</code></td><td>All new API routes added (see table below)</td></tr>
+  </tbody>
+</table>
+
+<h3>Phase 1 — Database Schema</h3>
+<pre>-- team_members
+id, name, email, mobile, stream, role, location, backup_id,
+backup_name, backup_email, backup_mobile,
+status (active|on_leave|moved_away), created_at, updated_at
+
+-- leave_records
+id, member_id, member_name, leave_date (YYYY-MM-DD),
+leave_type (vacation|sick|holiday), month_year (YYYY-MM),
+source (upload|manual), created_at
+UNIQUE(member_name, leave_date, leave_type)
+
+-- holidays
+id, holiday_date (YYYY-MM-DD), name,
+locations (JSON array of city strings e.g. ["Bangalore","Pune"]),
+is_national (0|1), created_at
+UNIQUE(holiday_date, name)</pre>
+
+<h3>Phase 1 — API Routes (all working)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Route</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/api/roster</code></td><td>All team members</td></tr>
+    <tr><td>POST</td><td><code>/api/roster</code></td><td>Add member</td></tr>
+    <tr><td>PUT</td><td><code>/api/roster/:id</code></td><td>Update member</td></tr>
+    <tr><td>PATCH</td><td><code>/api/roster/:id/status</code></td><td>Change status</td></tr>
+    <tr><td>GET</td><td><code>/api/leave?monthYear=2026-06</code></td><td>Leave records (filterable)</td></tr>
+    <tr><td>GET</td><td><code>/api/leave/today?date=YYYY-MM-DD</code></td><td>Who is on leave today (enriched with backup info)</td></tr>
+    <tr><td>POST</td><td><code>/api/upload-leave</code></td><td>Upload monthly leave CSV — auto-detects month from filename</td></tr>
+    <tr><td>GET</td><td><code>/api/holidays?location=Bangalore</code></td><td>Public holidays (filterable by city)</td></tr>
+    <tr><td>POST</td><td><code>/api/upload-holidays</code></td><td>Re-upload holiday list CSV</td></tr>
+    <tr><td>GET</td><td><code>/api/coverage?date=YYYY-MM-DD</code></td><td>Coverage map — who is out, is their backup also out?</td></tr>
+    <tr><td>GET</td><td><code>/api/missed-users?date=YYYY-MM-DD</code></td><td>Leave-aware: skips people on leave or on holiday for their location</td></tr>
+  </tbody>
+</table>
+
+<h3>Phase 2 — Team Details Tab (fully complete)</h3>
+<table>
+  <thead><tr><th>Component</th><th>Sub-tab</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>frontend/src/components/TeamRoster.js</code></td><td>Team Roster</td><td>Filterable table — stream, role, status filters, search, avatar, backup contact icons</td></tr>
+    <tr><td><code>frontend/src/components/BackupMap.js</code></td><td>Backup Map</td><td>Card grid grouped by stream — shows who backs each person AND who they cover (reverse lookup)</td></tr>
+    <tr><td><code>frontend/src/components/ManageMembers.js</code></td><td>Manage Members</td><td>Full CRUD — add/edit dialog, mark Active/On Leave/Moved Away with confirmation</td></tr>
+  </tbody>
+</table>
+
+
+<h2>Leave CSV Data Format (critical for Phase 3)</h2>
+<div class="note">
+  <strong>Files already seeded:</strong> Jun-26 (29 leave records) and Jul-26 (15 leave records) are already in the DB. The upload route handles future months.
+</div>
+
+<h3>Leave CSV structure (e.g. JDE_India_Vacation_Polaris_2026(Jun-26).csv)</h3>
+<pre>Row 1:  day-of-week headers → [blank, blank, Mon, Tue, Wed, Thu, Fri, Sat, Sun, Mon, ...]
+Row 2:  Name, Location, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... 30/31   (day numbers)
+Row 3+: AADHAR MEHROTRA, Noida, [blank], [blank], ... X ...      (X = vacation, S = sick, blank = working)
+
+Legend row: "Vacation", X   (marks the key — ignore these rows, they start with "Vacation"/"Holiday"/"SICK")</pre>
+
+<h3>Known locations in the data</h3>
+<pre>Bangalore, Pune, Hyderabad, Kolkata, Noida, Gurgaon</pre>
+
+<h3>Holiday CSV structure (JDE_India_Vacation_Polaris_2026(Holiday_List-2026).csv)</h3>
+<pre>Row 1: S.No, Name of the Holiday, 2026, "", Karnataka, Tamil Nadu, Telangana, Kerala, Haryana, UP, Maharashtra, Gujarat, West Bengal, Odisha
+Row 2: "", "", Date, Day, "Bengaluru, Mysore", "Chennai, Coimbatore", Hyderabad, Kochi, Gurgaon, "Noida, Lucknow", "Mumbai, Pune", "Ahmedabad, Gandhi Nagar", Kolkata, Bhubaneswar
+Row 3+: 1, Republic Day, 26-Jan-26, Monday, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1   (1 = observes holiday)</pre>
+
+
+<h2>Phase 3 — What To Build <span class="tag t-next">Next</span></h2>
+
+<p>The <strong>Leave Monitoring</strong> section in the left sidebar currently shows a "Coming Soon" placeholder. Replace it with 3 real sub-tabs:</p>
+
+<div class="card">
+  <h3>Sub-tab 1 — "Who's Out Today"</h3>
+  <ul>
+    <li>Default view — shows TODAY's date (can change date via a date-picker)</li>
+    <li>Two columns: <strong>On Leave</strong> (from leave_records) and <strong>On Holiday</strong> (from holidays table filtered by each person's location)</li>
+    <li>Each person card: name, stream, location, leave type badge (vacation/sick/holiday), their backup name + contact</li>
+    <li><strong>Coverage gap alert</strong>: red warning banner if a person is out AND their backup is also out</li>
+    <li>Hits: <code>GET /api/leave/today?date=YYYY-MM-DD</code> and <code>GET /api/coverage?date=YYYY-MM-DD</code></li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Sub-tab 2 — "Monthly Calendar"</h3>
+  <ul>
+    <li>Month selector (dropdown for year-month, e.g. 2026-06)</li>
+    <li>Grid: rows = team members, columns = days 1–30/31</li>
+    <li>Cell colour codes: Vacation = orange, Sick = red, Holiday (auto from their location) = blue, Weekend = grey bg, Working = white/green dot</li>
+    <li>Header row shows day-of-week (Mon/Tue/Wed…) and highlights weekends</li>
+    <li>Filter by stream</li>
+    <li>Hits: <code>GET /api/leave?monthYear=2026-06</code> and <code>GET /api/holidays</code> and <code>GET /api/roster</code></li>
+    <li>Show summary at top: total leave days this month, who had most leave, sick vs vacation split</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Sub-tab 3 — "Upload Leave"</h3>
+  <ul>
+    <li>Upload widget for monthly leave CSV files (same style as the existing ICA CSV upload in the sidebar)</li>
+    <li>Month is auto-detected from filename (e.g. "(Jun-26)" → June 2026)</li>
+    <li>Can also upload the holiday list CSV to refresh holidays</li>
+    <li>Shows list of months already uploaded (query distinct month_year from leave_records)</li>
+    <li>Hits: <code>POST /api/upload-leave</code> (multipart/form-data, field name = "file") and <code>POST /api/upload-holidays</code></li>
+    <li>Re-uploading the same month replaces that month's data (handled backend-side)</li>
+  </ul>
+</div>
+
+
+<h2>How To Wire Into App.js</h2>
+
+<h3>Current SECTIONS definition (relevant part)</h3>
+<pre>// In frontend/src/App.js — the Leave section currently is:
+{
+  id: 'leave',
+  label: 'Leave Monitoring',
+  icon: &lt;EventNoteIcon /&gt;,
+  subTabs: [
+    { id: 'leave-overview', label: 'Leave Overview', icon: &lt;EventNoteIcon /&gt;, requiresData: false },
+  ],
+},</pre>
+
+<h3>Replace with these 3 sub-tabs:</h3>
+<pre>// Imports needed in App.js:
+import WhosOutToday   from './components/WhosOutToday';
+import LeaveCalendar  from './components/LeaveCalendar';
+import LeaveUpload    from './components/LeaveUpload';
+import TodayIcon      from '@mui/icons-material/Today';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+// EventNoteIcon already imported
+
+// Updated SECTIONS entry:
+{
+  id: 'leave',
+  label: 'Leave Monitoring',
+  icon: &lt;EventNoteIcon /&gt;,
+  subTabs: [
+    { id: 'whos-out',       label: "Who's Out Today", icon: &lt;TodayIcon /&gt;,         requiresData: false },
+    { id: 'leave-calendar', label: 'Monthly Calendar', icon: &lt;CalendarMonthIcon /&gt;, requiresData: false },
+    { id: 'leave-upload',   label: 'Upload Leave',     icon: &lt;EventNoteIcon /&gt;,     requiresData: false },
+  ],
+},
+
+// In getPanel() switch statement, replace 'leave-overview' with:
+case 'whos-out':       return &lt;WhosOutToday /&gt;;
+case 'leave-calendar': return &lt;LeaveCalendar /&gt;;
+case 'leave-upload':   return &lt;LeaveUpload /&gt;;
+
+// In noDataTabs array, replace 'leave-overview' with:
+'whos-out', 'leave-calendar', 'leave-upload'</pre>
+
+
+<h2>MUI Theme (use exact same values)</h2>
+<pre>palette:
+  primary:    #2563eb (main), #3b82f6 (light), #1d4ed8 (dark)
+  background: #f1f5f9 (default), #ffffff (paper)
+  text:       #0f172a (primary), #475569 (secondary)
+  success:    #16a34a
+  warning:    #d97706
+  error:      #dc2626
+  divider:    #e2e8f0
+
+typography: "Inter", "Segoe UI", system-ui, sans-serif
+borderRadius: 10 (MuiCard 12)</pre>
+
+
+<h2>Colour Conventions Already Established</h2>
+<table>
+  <thead><tr><th>Thing</th><th>Background</th><th>Text/Border</th></tr></thead>
+  <tbody>
+    <tr><td>Leave type: vacation</td><td>rgba(234,179,8,0.15)</td><td>#a16207</td></tr>
+    <tr><td>Leave type: sick</td><td>rgba(220,38,38,0.12)</td><td>#dc2626</td></tr>
+    <tr><td>Leave type: holiday</td><td>rgba(37,99,235,0.10)</td><td>#2563eb</td></tr>
+    <tr><td>Coverage gap (alert)</td><td>rgba(220,38,38,0.08)</td><td>#dc2626 border</td></tr>
+    <tr><td>Stream: DTW</td><td>#dbeafe</td><td>#1e40af</td></tr>
+    <tr><td>Stream: MTC</td><td>#f3e8ff</td><td>#6b21a8</td></tr>
+    <tr><td>Stream: RTR</td><td>#dcfce7</td><td>#166534</td></tr>
+    <tr><td>Stream: STP</td><td>#fef9c3</td><td>#854d0e</td></tr>
+    <tr><td>Stream: T&amp;S</td><td>#fee2e2</td><td>#991b1b</td></tr>
+    <tr><td>Status: active</td><td>rgba(22,163,74,0.12)</td><td>#16a34a</td></tr>
+    <tr><td>Status: on_leave</td><td>rgba(234,179,8,0.15)</td><td>#a16207</td></tr>
+    <tr><td>Status: moved_away</td><td>rgba(148,163,184,0.15)</td><td>#64748b</td></tr>
+  </tbody>
+</table>
+
+
+<h2>Data Already In The Database</h2>
+<table>
+  <thead><tr><th>Table</th><th>Count</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>team_members</td><td>26</td><td>All seeded from backup CSV with locations patched. Status = active for all.</td></tr>
+    <tr><td>holidays</td><td>23</td><td>Full 2026 IBM India holiday calendar. 5 are national (all locations). Rest are state-specific.</td></tr>
+    <tr><td>leave_records</td><td>44</td><td>Jun-26: 29 records (month_year="2026-06"), Jul-26: 15 records (month_year="2026-07")</td></tr>
+  </tbody>
+</table>
+
+<div class="info">
+  <strong>Available months in leave_records:</strong> "2026-06" and "2026-07" — use these for testing the calendar and who's-out views.
+</div>
+
+
+<h2>Sample API Responses</h2>
+
+<h3>GET /api/leave/today?date=2026-06-09 (Lokesh on leave that day)</h3>
+<pre>{
+  "date": "2026-06-09",
+  "count": 1,
+  "members": [
+    {
+      "member_name": "LOKESH VEDIUM",
+      "leave_type": "vacation",
+      "member": {
+        "id": 8, "name": "Lokesh Vedium", "stream": "MTC",
+        "role": "Development", "location": "Bangalore",
+        "backup_name": "Nitin Kumar", "backup_email": "nitik032@in.ibm.com",
+        "backup_mobile": "9637997411", "status": "active"
+      }
+    }
+  ]
+}</pre>
+
+<h3>GET /api/coverage?date=2026-06-08</h3>
+<pre>{
+  "date": "2026-06-08",
+  "absent_count": 2,
+  "coverage_gaps": [],       // empty = no gap (both absent + backup also absent combos)
+  "coverage": [
+    { "name": "LOKESH VEDIUM", "status": "absent", "backup_name": "Nitin Kumar", "backup_status": "present", "coverage_gap": false },
+    { "name": "AJANTHA BABY M", "status": "absent", "backup_name": "Shikha Agrawal", "backup_status": "present", "coverage_gap": false },
+    ... (all 26 members)
+  ]
+}</pre>
+
+<h3>GET /api/holidays?location=Bangalore</h3>
+<pre>[
+  { "id": 1, "holiday_date": "2026-01-15", "name": "Pongal/ Sankranti", "locations": ["Bangalore"], "is_national": 0 },
+  { "id": 3, "holiday_date": "2026-01-26", "name": "Republic Day", "locations": [...all cities...], "is_national": 1 },
+  ...
+]</pre>
+
+
+<h2>Key Notes &amp; Gotchas</h2>
+<div class="note">
+  <strong>Name casing is inconsistent across files.</strong> Leave CSVs use ALL CAPS (e.g. "LOKESH VEDIUM"), team_members uses title case ("Lokesh Vedium"). The DB helper uses <code>UPPER(member_name)</code> for comparisons. In the frontend, use case-insensitive matching when joining leave data to roster data.
+</div>
+<div class="note">
+  <strong>Weekends in the calendar:</strong> Row 1 of the leave CSV has day-of-week headers. For the calendar view, derive day-of-week from the actual date using JavaScript's <code>new Date(year, month-1, day).getDay()</code> — 0=Sun, 6=Sat.
+</div>
+<div class="good">
+  <strong>The /api/coverage endpoint already does all the hard work</strong> for the Who's Out Today view — it returns every team member's presence/absence status, backup status, and flags coverage gaps. Just consume it.
+</div>
+<div class="info">
+  <strong>Upload endpoint:</strong> <code>POST /api/upload-leave</code> accepts <code>multipart/form-data</code> with field name <code>"file"</code>. Month is auto-detected from the filename (e.g. "(Jun-26)"). Returns <code>{ success, monthYear, inserted, total, members }</code>.
+</div>
+
+
+<h2>Full Roadmap Context</h2>
+<table>
+  <thead><tr><th>Phase</th><th>Status</th><th>Summary</th></tr></thead>
+  <tbody>
+    <tr><td>Phase 1</td><td><span class="tag t-done">Done</span></td><td>Backend — DB tables, parsers, seed, all API routes</td></tr>
+    <tr><td>Phase 2</td><td><span class="tag t-done">Done</span></td><td>Team Details tab — Roster, Backup Map, Manage Members</td></tr>
+    <tr><td>Phase 3</td><td><span class="tag t-next">Build this</span></td><td>Leave Monitoring — Who's Out Today, Monthly Calendar, Upload Leave</td></tr>
+    <tr><td>Phase 4</td><td><span class="tag t-later">Later</span></td><td>ICA Reminders leave-aware integration (backend already done, just update UI)</td></tr>
+    <tr><td>Phase 5</td><td><span class="tag t-later">Later</span></td><td>Overall Team tab — combined ICA + Leave + backup coverage view</td></tr>
+    <tr><td>Phase 6</td><td><span class="tag t-later">Later</span></td><td>Manager password protection for add/edit/delete actions</td></tr>
+  </tbody>
+</table>
+
+<footer>Made with IBM Bob</footer>
+</body>
+</html>

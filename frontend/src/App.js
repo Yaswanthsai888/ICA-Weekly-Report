@@ -16,20 +16,29 @@ import {
   LinearProgress,
   Button,
   Collapse,
+  Tab,
+  Tabs,
 } from '@mui/material';
-import DashboardIcon    from '@mui/icons-material/Dashboard';
-import ManageSearchIcon from '@mui/icons-material/ManageSearch';
-import PersonIcon       from '@mui/icons-material/Person';
-import SmartToyIcon     from '@mui/icons-material/SmartToy';
-import InsightsIcon     from '@mui/icons-material/Insights';
-import CloudUploadIcon  from '@mui/icons-material/CloudUpload';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import CheckCircleIcon  from '@mui/icons-material/CheckCircle';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import PeopleIcon       from '@mui/icons-material/People';
-import AccountTreeIcon  from '@mui/icons-material/AccountTree';
-import SlideshowIcon    from '@mui/icons-material/Slideshow';
+import DashboardIcon             from '@mui/icons-material/Dashboard';
+import ManageSearchIcon          from '@mui/icons-material/ManageSearch';
+import PersonIcon                from '@mui/icons-material/Person';
+import SmartToyIcon              from '@mui/icons-material/SmartToy';
+import InsightsIcon              from '@mui/icons-material/Insights';
+import CloudUploadIcon           from '@mui/icons-material/CloudUpload';
+import InsertDriveFileIcon       from '@mui/icons-material/InsertDriveFile';
+import CheckCircleIcon           from '@mui/icons-material/CheckCircle';
+import DeleteOutlineIcon         from '@mui/icons-material/DeleteOutline';
+import NotificationsActiveIcon   from '@mui/icons-material/NotificationsActive';
+import PeopleIcon                from '@mui/icons-material/People';
+import AccountTreeIcon           from '@mui/icons-material/AccountTree';
+import SlideshowIcon             from '@mui/icons-material/Slideshow';
+import EventNoteIcon             from '@mui/icons-material/EventNote';
+import TodayIcon                 from '@mui/icons-material/Today';
+import CalendarMonthIcon         from '@mui/icons-material/CalendarMonth';
+import GroupsIcon                from '@mui/icons-material/Groups';
+import BarChartIcon              from '@mui/icons-material/BarChart';
+import SwapHorizIcon             from '@mui/icons-material/SwapHoriz';
+import ManageAccountsIcon        from '@mui/icons-material/ManageAccounts';
 import axios from 'axios';
 
 import Dashboard        from './components/Dashboard';
@@ -37,11 +46,16 @@ import UsageExplorer    from './components/UsageExplorer';
 import UserReports      from './components/UserReports';
 import AssistantReports from './components/AssistantReports';
 import Reminders        from './components/Reminders';
-import TeamManager      from './components/TeamManager';
 import Architecture     from './components/Architecture';
 import Presentation     from './components/Presentation';
+import TeamRoster       from './components/TeamRoster';
+import BackupMap        from './components/BackupMap';
+import WhosOutToday     from './components/WhosOutToday';
+import LeaveCalendar    from './components/LeaveCalendar';
+import LeaveUpload      from './components/LeaveUpload';
+import ManagerTab       from './components/ManagerTab';
 
-const SIDEBAR_WIDTH = 248;
+const SIDEBAR_WIDTH = 232;
 
 const theme = createTheme({
   palette: {
@@ -84,26 +98,99 @@ const theme = createTheme({
     },
     MuiChip:      { styleOverrides: { root: { fontWeight: 500 } } },
     MuiTableCell: { styleOverrides: { head: { fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' } } },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+          fontSize: '0.82rem',
+          minHeight: 44,
+          padding: '0 16px',
+        },
+      },
+    },
   },
 });
 
-const NAV_ITEMS = [
-  { id: 0, label: 'Dashboard',         icon: <DashboardIcon />,              requiresData: true  },
-  { id: 1, label: 'Usage Explorer',    icon: <ManageSearchIcon />,           requiresData: true  },
-  { id: 2, label: 'User Reports',      icon: <PersonIcon />,                 requiresData: true  },
-  { id: 3, label: 'Assistant Reports', icon: <SmartToyIcon />,               requiresData: true  },
-  { id: 4, label: 'Send Reminders',    icon: <NotificationsActiveIcon />,    requiresData: true  },
-  { id: 5, label: 'Team Manager',      icon: <PeopleIcon />,                 requiresData: true  },
-  { id: 6, label: 'Architecture',      icon: <AccountTreeIcon />,            requiresData: false },
-  { id: 7, label: 'Presentation',      icon: <SlideshowIcon />,              requiresData: false },
+// ── Section definitions ────────────────────────────────────────────────────────
+// Each section has an id, label, icon (for the sidebar), and a list of sub-tabs.
+// Sub-tabs have: id (unique string), label, icon, requiresData flag, and panel.
+// Panels are rendered lazily inside the App component where refreshKey is available.
+
+const SECTIONS = [
+  {
+    id: 'ica',
+    label: 'ICA Monitoring',
+    icon: <InsightsIcon />,
+    subTabs: [
+      { id: 'dashboard',         label: 'Dashboard',         icon: <DashboardIcon />,            requiresData: true  },
+      { id: 'usage-explorer',    label: 'Usage Explorer',    icon: <ManageSearchIcon />,          requiresData: true  },
+      { id: 'user-reports',      label: 'User Reports',      icon: <PersonIcon />,               requiresData: true  },
+      { id: 'assistant-reports', label: 'Assistant Reports', icon: <SmartToyIcon />,             requiresData: true  },
+      { id: 'reminders',         label: 'Send Reminders',    icon: <NotificationsActiveIcon />,  requiresData: true  },
+      { id: 'architecture',      label: 'Architecture',      icon: <AccountTreeIcon />,          requiresData: false },
+      { id: 'presentation',      label: 'Presentation',      icon: <SlideshowIcon />,            requiresData: false },
+    ],
+  },
+  {
+    id: 'leave',
+    label: 'Leave Monitoring',
+    icon: <EventNoteIcon />,
+    subTabs: [
+      { id: 'whos-out',       label: "Who's Out Today", icon: <TodayIcon />,        requiresData: false },
+      { id: 'leave-calendar', label: 'Monthly Calendar', icon: <CalendarMonthIcon />, requiresData: false },
+      { id: 'leave-upload',   label: 'Upload Leave',     icon: <EventNoteIcon />,     requiresData: false },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Team Details',
+    icon: <GroupsIcon />,
+    subTabs: [
+      { id: 'team-roster', label: 'Team Roster', icon: <PeopleIcon />,    requiresData: false },
+      { id: 'backup-map',  label: 'Backup Map',  icon: <SwapHorizIcon />, requiresData: false },
+    ],
+  },
+  {
+    id: 'manager',
+    label: 'Manager',
+    icon: <ManageAccountsIcon />,
+    subTabs: [
+      { id: 'manage-members', label: 'Manage Members', icon: <ManageAccountsIcon />, requiresData: false },
+    ],
+  },
+  {
+    id: 'overall',
+    label: 'Overall Team',
+    icon: <BarChartIcon />,
+    subTabs: [
+      { id: 'overall-overview', label: 'Overall Overview', icon: <BarChartIcon />, requiresData: false },
+    ],
+  },
 ];
+
+// ── Placeholder panel for sections not yet built ───────────────────────────────
+function ComingSoon({ title }) {
+  return (
+    <Box sx={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', height: '60vh', gap: 2, opacity: 0.55,
+    }}>
+      <BarChartIcon sx={{ fontSize: 52, color: 'text.disabled' }} />
+      <Typography variant="h6" color="text.secondary">{title}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        This section is coming soon.
+      </Typography>
+    </Box>
+  );
+}
 
 // ── Compact sidebar upload widget ─────────────────────────────────────────────
 function SidebarUpload({ onUploadSuccess, onClearData }) {
-  const [file, setFile]         = useState(null);
-  const [dragging, setDragging] = useState(false);
+  const [file, setFile]           = useState(null);
+  const [dragging, setDragging]   = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult]     = useState(null);   // { ok, message, isNew }
+  const [result, setResult]       = useState(null);
   const inputId = 'sidebar-csv-input';
 
   const acceptFile = (f) => {
@@ -158,7 +245,6 @@ function SidebarUpload({ onUploadSuccess, onClearData }) {
     <Box sx={{ px: 2, pb: 2 }}>
       <Divider sx={{ borderColor: '#1e293b', mb: 2 }} />
 
-      {/* Section label */}
       <Typography sx={{ color: '#475569', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', mb: 1.5 }}>
         Import CSV
       </Typography>
@@ -268,12 +354,12 @@ function SidebarUpload({ onUploadSuccess, onClearData }) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
-  const [activeTab, setActiveTab]       = useState(0);
-  const [dataUploaded, setDataUploaded] = useState(false);
-  const [checking, setChecking]         = useState(true);
-  const [recordCount, setRecordCount]   = useState(0);
-  // Refresh key — increment to force child re-fetch after upload
-  const [refreshKey, setRefreshKey]     = useState(0);
+  const [activeSection, setActiveSection] = useState('ica');
+  const [activeSubTab,  setActiveSubTab]  = useState('dashboard');
+  const [dataUploaded,  setDataUploaded]  = useState(false);
+  const [checking,      setChecking]      = useState(true);
+  const [recordCount,   setRecordCount]   = useState(0);
+  const [refreshKey,    setRefreshKey]    = useState(0);
 
   const checkDataStatus = useCallback(() => {
     axios.get('/api/users')
@@ -289,9 +375,11 @@ function App() {
 
   const handleUploadSuccess = () => {
     setDataUploaded(true);
-    setRefreshKey(k => k + 1);   // causes active panel to re-fetch
-    if (!dataUploaded) setActiveTab(0);  // first upload → go to Dashboard
-    // Refresh count after upload
+    setRefreshKey(k => k + 1);
+    if (!dataUploaded) {
+      setActiveSection('ica');
+      setActiveSubTab('dashboard');
+    }
     axios.get('/api/usage', { params: { startDate: '2000-01-01', endDate: '2099-12-31' } })
       .then(r => setRecordCount(r.data?.length || 0))
       .catch(() => {});
@@ -303,24 +391,49 @@ function App() {
     setRefreshKey(k => k + 1);
   };
 
-  // Pass refreshKey as prop so panels re-mount when data changes
-  const PANELS = [
-    <Dashboard        key={refreshKey} />,
-    <UsageExplorer    key={refreshKey} />,
-    <UserReports      key={refreshKey} />,
-    <AssistantReports key={refreshKey} />,
-    <Reminders        key={refreshKey} />,
-    <TeamManager      key={refreshKey} refreshKey={refreshKey} />,
-    <Architecture />,
-    <Presentation     key="presentation" onLaunch={() => setActiveTab(0)} />,
-  ];
+  // Switch section → reset to first sub-tab of that section
+  const handleSectionChange = (sectionId) => {
+    setActiveSection(sectionId);
+    const section = SECTIONS.find(s => s.id === sectionId);
+    setActiveSubTab(section.subTabs[0].id);
+  };
+
+  // Map sub-tab id → panel element
+  const getPanel = (subTabId) => {
+    switch (subTabId) {
+      case 'dashboard':         return <Dashboard        key={refreshKey} />;
+      case 'usage-explorer':    return <UsageExplorer    key={refreshKey} />;
+      case 'user-reports':      return <UserReports      key={refreshKey} />;
+      case 'assistant-reports': return <AssistantReports key={refreshKey} />;
+      case 'reminders':         return <Reminders        key={refreshKey} />;
+      case 'architecture':      return <Architecture />;
+      case 'presentation':      return <Presentation     key="presentation" onLaunch={() => { setActiveSection('ica'); setActiveSubTab('dashboard'); }} />;
+      // Team Details
+      case 'team-roster':       return <TeamRoster />;
+      case 'backup-map':        return <BackupMap />;
+      // Leave Monitoring (Phase 3)
+      case 'whos-out':          return <WhosOutToday />;
+      case 'leave-calendar':    return <LeaveCalendar />;
+      case 'leave-upload':      return <LeaveUpload />;
+      // Manager (single source of truth for all member edits)
+      case 'manage-members':    return <ManagerTab />;
+      // Overall (Phase 5)
+      case 'overall-overview':  return <ComingSoon title="Overall Team" />;
+      default:                  return null;
+    }
+  };
+
+  const currentSection = SECTIONS.find(s => s.id === activeSection);
+  const currentSubTab  = currentSection?.subTabs.find(t => t.id === activeSubTab);
+  const noDataTabs     = ['architecture', 'presentation', 'whos-out', 'leave-calendar', 'leave-upload', 'team-roster', 'backup-map', 'manage-members', 'overall-overview', 'manager'];
+  const canView        = dataUploaded || noDataTabs.includes(activeSubTab);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
 
-        {/* ── Sidebar ── */}
+        {/* ── Left Sidebar — main sections ── */}
         <Box sx={{
           width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: '#0f172a',
           display: 'flex', flexDirection: 'column',
@@ -333,8 +446,8 @@ function App() {
               <InsightsIcon sx={{ color: '#fff', fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.92rem', lineHeight: 1.2 }}>ICA Monitoring Portal</Typography>
-              <Typography sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>Usage Analytics</Typography>
+              <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.2 }}>Team Monitoring</Typography>
+              <Typography sx={{ color: '#94a3b8', fontSize: '0.68rem' }}>HNK IBM Portal</Typography>
             </Box>
           </Box>
 
@@ -349,9 +462,7 @@ function App() {
               </Box>
             ) : (
               <Chip size="small"
-                label={dataUploaded
-                  ? `${recordCount.toLocaleString()} records`
-                  : 'No data — upload below'}
+                label={dataUploaded ? `${recordCount.toLocaleString()} records` : 'No data — upload below'}
                 sx={{
                   bgcolor: dataUploaded ? 'rgba(22,163,74,0.15)' : 'rgba(148,163,184,0.1)',
                   color:   dataUploaded ? '#4ade80' : '#94a3b8',
@@ -363,72 +474,124 @@ function App() {
             )}
           </Box>
 
-          {/* Nav */}
+          {/* Section nav */}
           <List sx={{ px: 1.5, pt: 0.5, flexGrow: 1 }} disablePadding>
-            {NAV_ITEMS.map((item) => {
-              const disabled = item.requiresData && !dataUploaded;
-              const active   = activeTab === item.id;
+
+            {/* Section group label */}
+            <Typography sx={{ color: '#475569', fontSize: '0.63rem', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', px: 1.5, pt: 1, pb: 0.5 }}>
+              Sections
+            </Typography>
+
+            {SECTIONS.map((section) => {
+              const active = activeSection === section.id;
               return (
-                <Tooltip key={item.id} title={disabled ? 'Upload a CSV first' : ''} placement="right">
-                  <span>
-                    <ListItemButton
-                      disabled={disabled}
-                      onClick={() => setActiveTab(item.id)}
-                      sx={{
-                        borderRadius: 2, mb: 0.5, py: 1, px: 1.5,
-                        bgcolor: active ? 'rgba(37,99,235,0.2)' : 'transparent',
-                        '&:hover': { bgcolor: active ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)' },
-                        '&.Mui-disabled': { opacity: 0.35 },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 34, color: active ? '#60a5fa' : '#64748b', '& .MuiSvgIcon-root': { fontSize: 19 } }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText primary={item.label}
-                        primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: active ? 600 : 400, color: active ? '#e2e8f0' : '#94a3b8' }} />
-                      {active && <Box sx={{ width: 3, height: 20, borderRadius: 4, bgcolor: '#3b82f6', ml: 1 }} />}
-                    </ListItemButton>
-                  </span>
-                </Tooltip>
+                <ListItemButton
+                  key={section.id}
+                  onClick={() => handleSectionChange(section.id)}
+                  sx={{
+                    borderRadius: 2, mb: 0.5, py: 1, px: 1.5,
+                    bgcolor: active ? 'rgba(37,99,235,0.2)' : 'transparent',
+                    '&:hover': { bgcolor: active ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)' },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 34, color: active ? '#60a5fa' : '#64748b', '& .MuiSvgIcon-root': { fontSize: 19 } }}>
+                    {section.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={section.label}
+                    primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: active ? 600 : 400, color: active ? '#e2e8f0' : '#94a3b8' }}
+                  />
+                  {active && <Box sx={{ width: 3, height: 20, borderRadius: 4, bgcolor: '#3b82f6', ml: 1 }} />}
+                </ListItemButton>
               );
             })}
           </List>
 
-          {/* ── Upload widget lives at the bottom of the sidebar ── */}
-          <SidebarUpload onUploadSuccess={handleUploadSuccess} onClearData={handleClearData} />
+          {/* Upload widget — only shown in ICA section */}
+          {activeSection === 'ica' && (
+            <SidebarUpload onUploadSuccess={handleUploadSuccess} onClearData={handleClearData} />
+          )}
         </Box>
 
-        {/* ── Main content ── */}
+        {/* ── Main content area ── */}
         <Box component="main" sx={{ flexGrow: 1, ml: `${SIDEBAR_WIDTH}px`, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
-          {/* Top bar */}
+          {/* ── Top header bar with sub-tabs ── */}
           <Box sx={{
-            height: 56, bgcolor: 'background.paper',
+            bgcolor: 'background.paper',
             borderBottom: '1px solid', borderColor: 'divider',
-            display: 'flex', alignItems: 'center', px: 4, gap: 2,
             position: 'sticky', top: 0, zIndex: 50,
           }}>
-            <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 600, flexGrow: 1 }}>
-              {NAV_ITEMS.find(n => n.id === activeTab)?.label}
-            </Typography>
-            {dataUploaded && (
-              <Chip
-                size="small"
-                label={`${recordCount.toLocaleString()} records`}
-                sx={{
-                  bgcolor: 'rgba(37,99,235,0.08)', color: '#2563eb',
-                  border: '1px solid rgba(37,99,235,0.2)',
-                  fontSize: '0.7rem', height: 22, fontWeight: 600,
-                  '.MuiChip-label': { px: 1 },
-                }}
-              />
-            )}
+            {/* Section title row */}
+            <Box sx={{
+              height: 48, display: 'flex', alignItems: 'center', px: 3, gap: 2,
+              borderBottom: '1px solid', borderColor: 'divider',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                {currentSection?.icon && React.cloneElement(currentSection.icon, { sx: { fontSize: 18, color: '#2563eb' } })}
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#2563eb', letterSpacing: '0.02em' }}>
+                  {currentSection?.label}
+                </Typography>
+              </Box>
+              <Box sx={{ width: 1, height: 16, bgcolor: 'divider' }} />
+              <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 600, flexGrow: 1 }}>
+                {currentSubTab?.label}
+              </Typography>
+              {dataUploaded && activeSection === 'ica' && (
+                <Chip
+                  size="small"
+                  label={`${recordCount.toLocaleString()} records`}
+                  sx={{
+                    bgcolor: 'rgba(37,99,235,0.08)', color: '#2563eb',
+                    border: '1px solid rgba(37,99,235,0.2)',
+                    fontSize: '0.7rem', height: 22, fontWeight: 600,
+                    '.MuiChip-label': { px: 1 },
+                  }}
+                />
+              )}
+            </Box>
+
+            {/* Sub-tabs row — Tab must be a direct child of Tabs for value matching */}
+            <Tabs
+              value={activeSubTab}
+              onChange={(_, newVal) => setActiveSubTab(newVal)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 40,
+                px: 1,
+                '& .MuiTabs-indicator': { bgcolor: '#2563eb', height: 2 },
+                '& .MuiTab-root': { minHeight: 40 },
+                '& .MuiTab-root.Mui-selected': { color: '#2563eb', fontWeight: 600 },
+                '& .MuiTab-root:not(.Mui-selected)': { color: '#64748b' },
+                '& .MuiTab-root.Mui-disabled': { opacity: 0.38 },
+              }}
+            >
+              {currentSection?.subTabs.map((tab) => {
+                const disabled = tab.requiresData && !dataUploaded;
+                return (
+                  <Tab
+                    key={tab.id}
+                    value={tab.id}
+                    disabled={disabled}
+                    label={
+                      <Tooltip title={disabled ? 'Upload a CSV first' : ''} placement="bottom">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          {React.cloneElement(tab.icon, { sx: { fontSize: 15 } })}
+                          {tab.label}
+                        </Box>
+                      </Tooltip>
+                    }
+                  />
+                );
+              })}
+            </Tabs>
           </Box>
 
-          {/* Page */}
+          {/* ── Page content ── */}
           <Box sx={{ p: 3.5, flexGrow: 1 }}>
-            {(dataUploaded || activeTab === 6 || activeTab === 7)
-              ? PANELS[activeTab]
+            {canView
+              ? getPanel(activeSubTab)
               : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 2, opacity: 0.6 }}>
                   <CloudUploadIcon sx={{ fontSize: 52, color: 'text.disabled' }} />
